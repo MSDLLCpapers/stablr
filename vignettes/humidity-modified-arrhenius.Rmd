@@ -1,0 +1,122 @@
+---
+title: "Humidity-Modified Arrhenius Equation"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+bibliography: references.bib  
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{Humidity-Modified Arrhenius Equation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Setup
+```{r setup, warning=FALSE,message=FALSE}
+library(stablr)
+library(tidyverse)
+```
+
+## Introduction - Humidity-Modified Arrhenius Equation
+
+Stability studies may sometimes be performed under multiple temperature and relative humidity conditions. When relative humidity varies over time and across temperatures, this attribute can be incorporated into stability models using a humidity-modified form of the Arrhenius equation. The general form of the humidity-modified Arrhenius equation outlined by @waterman2016 is:
+
+
+$$
+\ln(k) = \ln(A) - \frac{E_a}{R T} + B(RH)
+$$
+
+which can be written in the two-point form of the Arrhenius expression:
+$$
+k = k_{\text{ref}}\exp\left(\frac{E_a}{R}\left(\frac{1}{T_{\text{ref}}} - \frac{1}{T}\right)\right)\exp\left(b\left(RH - RH_{\text{ref}}\right)\right)
+$$
+
+where $k_{ref}$ is the rate constant at the reference temperature and reference relative humidity, $E_a$ is the activation energy, $T_{ref}$ is the reference temperature (in Kelvin), $T$ is the input temperature (in Kelvin), $b$ is the relative humidity sensitivity parameter, $RH$ is the input relative humidity (values between 0 and 1), and $RH_{ref}$ is the reference relative humidity (value between 0 and 1). When the humidity-modified Arrhenius equation is used for modeling, predictions can be obtained that are specific to time, temperature, and relative humidity.
+
+The humidity-modified form of the Arrhenius equation can be implemented using the `stablr` package via the `expr_arrhenius_humidity()` function. This form of the Arrhenius equation should only be used when samples are collected at more than one RH value for a given temperature. Here, we demonstrate how to train a model using the humidity-modified Arrhenius equation with `stablr` using data from [@flavier2022].
+
+## Create Custom (RH-modified) Temperature Expression
+
+We first load in the stability data collected over time, across temperatures, and across relative humidities. We then use the `expr_arrhenius_humidity()` function to set up a custom, humidity-modified temperature expression. 
+```{r load_data}
+# Load + Prep Data
+data(flavier_supp)
+df <- flavier_supp |> filter(temp < 90 & rh > 0.23)
+
+# Set-up RH Expr
+custom_expr_rh <- expr_arrhenius_humidity(
+  R = 8.314,
+  trefk = 343.15,
+  temp_var = "tempk",
+  rh_col = "rh",
+  rh_ref = 0.41,
+  log_Ea = FALSE
+)
+
+print(custom_expr_rh$formula) # RH-modified Arrhenius Expression
+```
+
+## Train Model Using Custom Temperature Expression
+
+The custom Arrhenius expression we obtained using `expr_arrhenius_humidity()` is passed to the `temp_expr` argument in the `fit_kinetic()` function. Notice that the model now estimates $b$, the relative humidity sensitivity parameter. 
+```{r fit_model}
+# Fit Model Using Custom temp_expr 
+mod <- fit_kinetic(
+  df, 
+  kinetic_order = 1,
+  trend = "increasing",
+  Yinf = 100,
+  temp_expr = custom_expr_rh
+)
+
+summary(mod)
+```
+
+## Generate and Visualize Predictions
+
+Predictions can be obtained using the default `predict()` methods. The `predict()` function will look for the name of the $rh_{col}$ in the prediction dataframe to generate time, temperature, and relative humidity-specific predictions.
+```{r viz, fig.width=6,fig.height=4,fig.align="center"}
+# Project Out to 36 Days
+proj <- data.frame(time = c(36), tempk = c(333.15), rh = c(0.29), temp = c(60))
+df_new <- bind_rows(df, proj)
+pred <- predict(mod, df_new, interval="prediction")
+pred <- cbind(pred, df_new)
+
+# Plotting
+pred$rh_perc <- paste( pred$rh * 100, "%", sep = "")
+
+pred |> 
+  ggplot(
+    aes(
+      x = time, y = fit, color = as.factor(temp), 
+      fill = as.factor(temp), 
+      shape = as.factor(rh_perc)
+      )) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.3) +
+  theme_bw(base_size = 14) +
+  geom_point(data = pred |> filter(!is.na(y)), aes(x = time, y = y), stroke = 1) +
+  xlab("Time (days)") +
+  ylab("Predicted delta\nE* +/- 95% PI") +
+  scale_shape_manual(name = "RH", values = c(1:6)) +
+  scale_color_manual(
+    name = "Temperature (°C)", values = c("dodgerblue", "darkgoldenrod2", "red2")
+    ) +
+  scale_fill_manual(
+    name = "Temperature (°C)", values = c("dodgerblue", "darkgoldenrod2", "red2")
+    )
+```
+
+## References
+
+<div id="refs"></div>

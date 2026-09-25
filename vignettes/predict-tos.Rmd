@@ -1,0 +1,178 @@
+---
+title: "Time Out of Storage (TOS) Prediction"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Time Out of Storage (TOS) Prediction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, warning=FALSE,message=FALSE}
+library(stablr)
+library(tidyverse)
+library(knitr)
+```
+
+## Introduction - Time Out of Storage 
+
+During drug development, manufacturing, or commercial supply, products may be exposed to temperatures outside of the intended storage temperature. For example, a refrigerated product may be left at room temperature for a period of time during shipping or image assembly. These temperature excursions are referred to as time out of storage (TOS) scenarios.
+
+Because temperature is an input variable in the `stablr` models, the impact of these TOS excursions can be estimated after model fitting. The `stablr` models are fit (via `fit_kinetic()`, `fit_singledeg()`, `fit_parallel()`, or `fit_sb()`) using stability data collected at constant storage, accelerated, and stressed temperature conditions. These fitted models are then used to predict how TOS excursions will impact a product's long-term stability.
+
+Here, we will demonstrate how to obtain `stablr` model TOS predictions using the `predict_tos()` function.  
+
+## Train a Model
+
+First, we will train a model using a `stablr` fit function. We will start with a simple `fit_kinetic()` example. 
+```{r load_data}
+# Load + Prep Data
+data(evers_supp)
+df <- evers_supp |> filter(cqa=="HMW" & !is.na(y))
+
+# Fit Model 
+mod <- fit_kinetic(
+  df, 
+  kinetic_order = 1,
+  trend = "increasing",
+  intercept_cols = "batch"
+)
+
+# summary(mod)
+```
+
+## Set-up a TOS Schedule
+
+To obtain TOS predictions, a "schedule" must be specified to tell the function at what timepoints temperature excursions occur and what temperatures the product was exposed to during those times. The schedule must also include the level of the covariate(s) used for `intercept_cols` or `rate_cols` fitting. For this example, we will assume that the product was stored at 5 °C for 12 M, and then experienced a TOS excursion at 40 °C for one month before returning to the storage temperature of 5 °C for 11 M.
+
+The `predict_tos()` assumes that the schedule begins at time 0 (i.e., `t_start=c(0,...)`)
+```{r sched, fig.width=6,fig.height=4,fig.align="center"}
+
+# Schedule
+s <- data.frame(
+  t_start = c(0, 12, 13), # starting timepoints for each excursion
+  t_end = c(12, 13, 24), # ending timepoints for each excursion
+  temp = c(5, 40, 5), # temperatures for each excursion
+  batch = c("Combi_F2-PM1") # batch to focus on
+)
+```
+
+## Predict the Impact of TOS
+
+Now we will use our fitted model, our schedule, and the `predict_tos()` function to obtain our TOS predictions. Three arguments control the output: `level` (the confidence level for the interval, default `0.95`); `var`, which selects a single response for multi-CQA models (see the next section, single-CQA models like this one do not need it); and `time_step`, which adds predictions *within* each segment. By default only the segment boundaries are returned, so a 12-month storage leg contributes a single row. `time_step = 1` would predict every month.
+```{r pred, fig.width=6,fig.height=4,fig.align="center"}
+# Predict TOS
+out <- predict_tos(
+  fit = mod, # stablr-fitted model
+  schedule = s, # schedule
+  temp_unit = "C", # temperature units in schedule (C or K)
+  time_step = 1 # frequency of predictions within a segment
+)
+kable(out[1:10,])
+```
+
+The first row is the time-0 baseline and each row after belongs to a schedule segment. `predict_tos()` returns:
+
+- `segment`: `0` for the baseline row, then the schedule segment number.
+- `time`: the cumulative time elapsed (`0` for the baseline row).
+- `temp`: the segment's temperature.
+- `variable`: the response being predicted (`y` for single-CQA models).
+- `fit`: the predicted CQA value at that time. 
+- `lwr`, `upr`: the prediction interval bounds at the requested `level`.
+
+```{r pred_plot, fig.width=6,fig.height=4,fig.align="center"}
+# Visualize
+ggplot(out,aes(x=time,y=fit))+
+  geom_line()+
+  theme_bw(base_size=14)+
+  xlab("Time (months)")+
+  ylab("TOS-Predicted\nHMW +/- 95% PI")+
+  geom_rect(
+    data = data.frame(
+      xmin = c(s$t_start),
+      xmax = c(s$t_end),
+      ymin = -Inf,
+      ymax = Inf,
+      fill = c(as.factor(s$temp))
+    ),
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = fill),
+    inherit.aes = FALSE,
+    alpha = 0.3
+  )+
+    scale_fill_manual(name="Temperature (°C)", values=c("dodgerblue","red3"))+
+    geom_ribbon(aes(ymin=lwr,ymax=upr),alpha=0.1,color="black",linetype="dashed")
+
+```
+
+## Predicting TOS for Multi-CQA Models
+
+The general TOS workflow is the same as above when using `fit_singledeg()` or `fit_parallel()` models as input. For a multi-CQA model, call `predict_tos()` once per response using the `var` argument (`"yA"`, `"yB"`, or `"yC"`). 
+```{r parallel,fig.width=8,fig.height=3,fig.align="center"}
+# Load + Prep Data
+data(upsec)
+df <- upsec |> pivot_wider(names_from = c("cqa"), values_from="y")
+
+# Fit Model 
+mod <- fit_parallel(
+  df, 
+  kinetic_order = 1,
+  intercept_cols = "batch",
+  yA_var = "Total Main",
+  yB_var = "HMWS",
+  yC_var = "LMWS"
+)
+# summary(mod)
+
+# Schedule
+s <- data.frame(
+  t_start = c(0, 12, 18, 24), # starting timepoints for segments
+  t_end = c(12, 18, 24, 36), # ending timepoints for segments
+  temp = c(278.15, 298.15, 278.15, 313.15), # temperatures for segments
+  batch = c(4) # batch to focus on
+)
+
+# TOS 
+cqa_labels <- c(yA = "Total Main", yB = "HMWS", yC = "LMWS")
+out_all <- imap_dfr(cqa_labels, ~ predict_tos(
+  fit = mod, # stablr-fitted model
+  schedule = s, # schedule
+  temp_unit = "K", # temperature units in schedule (C or K)
+  var = .y # yA, yB, or yC
+) |> mutate(variable = .x))
+kable(out_all[1:10,])
+
+# Visualize 
+ggplot(out_all, aes(x = time, y = fit))+
+  geom_line()+
+  theme_bw(base_size = 14)+
+  xlab("Time (months)")+
+  ylab("TOS-Predicted\nCQA +/- 95% PI")+
+  facet_wrap(~variable, scales = "free_y")+
+  geom_rect(
+    data = data.frame(
+      xmin = c(s$t_start),
+      xmax = c(s$t_end),
+      ymin = -Inf,
+      ymax = Inf,
+      fill = c(as.factor(s$temp))
+    ),
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = fill),
+    inherit.aes = FALSE,
+    alpha = 0.3
+  )+
+    scale_fill_manual(name="Temperature (K)", values=c("dodgerblue","darkgoldenrod2","red3"))+
+    geom_ribbon(aes(ymin=lwr,ymax=upr),alpha=0.1,color="black",linetype="dashed")
+
+
+```

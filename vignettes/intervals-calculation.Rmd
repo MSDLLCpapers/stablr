@@ -1,0 +1,358 @@
+---
+title: "Prediction and Tolerance Intervals for Kinetic Models"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 4
+    number_sections: true
+bibliography: references.bib  
+link-citations: true
+vignette: >
+  %\VignetteIndexEntry{Prediction and Tolerance Intervals}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+library(stablr)
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+# Introduction
+
+This vignette demonstrates how to compute and interpret statistical intervals for kinetic stability models:
+
+- **Confidence Intervals (CI):** Quantify uncertainty in the mean response
+- **Prediction Intervals (PI):** Cover a single future observation  
+- **Tolerance Intervals (TI):** Cover a proportion γ of the population
+
+The `stablr` package implements tolerance intervals for nonlinear models by extending the Delta Method using the framework of @krishnamoorthy2009. The first part of this vignette covers the mathematical theory, followed by a practical example at 5°C storage conditions.
+
+**Notation.** Throughout this document we use the following conventions:
+
+| Symbol | Definition |
+|--------|------------|
+| $n$    | Number of observations in the training data |
+| $p$    | Number of model parameters |
+| $i$    | Observation index, $i = 1, \ldots, n$ |
+| $j$    | Parameter index, $j = 1, \ldots, p$ |
+| $x_0$  | A new (future) covariate point at which predictions are made |
+| $Y_0$  | A future observation at $x_0$, i.e. $Y_0 = f(x_0, \theta) + \epsilon_0$ |
+
+------------------------------------------------------------------------
+
+# Nonlinear Tolerance Intervals via the Delta Method
+
+## The Asymptotic Delta Method for Nonlinear Models
+
+In a nonlinear regression model, we assume the relationship: 
+
+\begin{equation}
+Y_i = f(x_i, \theta) + \epsilon_i, \quad \epsilon_i \sim N(0, \sigma^2)
+\end{equation}
+
+Where $f$ is a nonlinear function of the parameter vector $\theta$. The least-squares estimator $\hat{\theta}$ is obtained by minimizing the sum of squared residuals. Under standard regularity conditions, the estimator $\hat{\theta}$ is asymptotically normally distributed :
+\begin{equation}
+\hat{\theta} \sim N(\theta, \sigma^2 (F^T F)^{-1})
+\end{equation}
+
+Where $F$ (the Jacobian matrix) is the $n \times p$ matrix of partial derivatives of $f$ evaluated at $\hat{\theta}$ and each data point $x_i$:
+
+\begin{equation}
+F_{ij} = \frac{\partial f(x_i, \theta)}{\partial \theta_j}\bigg|_{\theta=\hat{\theta}}
+\end{equation}
+
+To estimate the prediction intervals, the Delta Method uses a first-order Taylor expansion to approximate the distribution of the model function at a new point $x_0$:
+
+\begin{equation}
+f(x_0, \theta) \approx f(x_0, \hat{\theta}) + \nabla f(x_0, \hat{\theta})^T (\theta - \hat{\theta})
+\end{equation}
+
+Here, $\nabla f(x_0, \hat{\theta})$ is the gradient vector (Jacobian) of the model with respect to the parameters evaluated at the new point $x_0$. By combining this Taylor expansion with the asymptotic distribution of $\hat{\theta}$ from equation (2), we can derive the asymptotic distribution of the predicted value at $x_0$:
+
+\begin{equation}
+f(x_0, \hat{\theta}) \sim N\left(f(x_0, \theta), \sigma^2 \nabla f_0^T (F^T F)^{-1} \nabla f_0\right)
+\end{equation}
+
+
+## Computation of Prediction and Confidence Intervals
+
+Building on the asymptotic distribution above, we can construct confidence and prediction intervals by estimating the variance components. Define the standardized squared distance:
+
+\begin{equation}
+d^2 = \nabla f_0^T (F^T F)^{-1} \nabla f_0
+\end{equation}
+
+This quantity $d^2$ measures the "leverage" or influence of the new prediction point $x_0$ relative to the training data, analogous to the hat value in linear regression. Using this, we obtain:
+
+-   **Standard Error of the Fit:** $se_{fit} = \hat{\sigma} \sqrt{d^2}$, which quantifies uncertainty in the mean prediction $E[Y_0 | x_0]$
+-   **Standard Error of Prediction:** $se_{pred} = \hat{\sigma} \sqrt{1 + d^2}$, which adds the irreducible error variance ($\sigma^2$) to account for individual observation variability
+
+The $(1-\alpha)$ Confidence Interval for the mean response is:
+
+\begin{equation}
+\hat{y}_0 \pm t_{n-p; 1-\alpha/2} \cdot se_{fit}
+\end{equation}
+
+The $(1-\alpha)$ Prediction Interval for a single future observation is:
+
+\begin{equation}
+\hat{y}_0 \pm t_{n-p; 1-\alpha/2} \cdot se_{pred}
+\end{equation}
+
+These intervals account for parameter uncertainty through $d^2$ and, in the case of prediction intervals, also for the random error of a new observation.
+
+The `stablr` package uses `gslnls` for model fitting (via `fit_kinetic()`, `fit_parallel()`, and `fit_singledeg()`) and inherits the interval calculation methods for prediction and confidence intervals through the standard `predict()` interface. The `gslnls` package implements these formulas using the `predict.gsl_nls()` method with `interval = "confidence"` or `interval = "prediction"`. The package computes the Jacobian matrix $F$ at the training data via the `gradient()` function and at new points via `gradient1(newdata)`, then evaluates $d^2$ using the QR decomposition of $F$ for numerical stability. 
+
+## Tolerance Intervals for Nonlinear Models
+
+A $(\gamma, 1-\alpha)$ **Tolerance Interval** covers at least a proportion $\gamma$ of the population with confidence level $1-\alpha$. This differs from confidence intervals (which cover the mean) and prediction intervals (which cover a single future observation). The tolerance interval results from @krishnamoorthy2009 for linear regression are **asymptotically applicable** to nonlinear models through the Delta Method.
+
+### Asymptotic Equivalence with Linear Regression
+
+The key insight is that both linear and nonlinear regression yield estimators with the same distributional form.
+
+In **linear regression** (K&M Section 3.2.1):
+
+- Mean function: $\mu(x_0) = x_0^T\beta$
+- Distribution: $x_0^T\hat{\beta} \sim N(x_0^T\beta, \sigma^2 x_0^T(X^TX)^{-1}x_0)$
+- Standardized distance: $d^2 = x_0^T(X^TX)^{-1}x_0$
+
+In **nonlinear regression** with Delta Method:
+
+- Mean function: $\mu(x_0) = f(x_0, \theta)$
+- Asymptotic distribution: $f(x_0, \hat{\theta}) \sim N(f(x_0, \theta), \sigma^2 \nabla f_0^T(F^TF)^{-1}\nabla f_0)$
+- Standardized distance: $d^2 = \nabla f_0^T(F^TF)^{-1}\nabla f_0$
+
+Both have the form: $\hat{y} \sim N(\hat{\mu}, \sigma^2 \cdot d^2)$. Therefore, the tolerance interval formulas from K&M can be applied to nonlinear models by making the following substitutions:
+
+- $x_0^T\hat{\beta} \rightarrow f(x_0, \hat{\theta})$ (predicted mean)
+- $X \rightarrow F$ (design matrix → Jacobian matrix)
+- $x_0 \rightarrow \nabla f_0$ (covariate vector → gradient vector)
+- $d^2 = x_0^T(X^TX)^{-1}x_0 \rightarrow d^2 = \nabla f_0^T(F^TF)^{-1}\nabla f_0$
+
+**Important caveats:** This equivalence is an **asymptotic approximation** that holds when:
+
+1. The sample size is sufficiently large for the Delta Method to be accurate
+2. The curvature of $f(x, \theta)$ is moderate, so the linear approximation around $\hat{\theta}$ is reasonable
+3. Standard regularity conditions hold (identifiability, bounded derivatives, continuous Hessian)
+
+For finite samples with high model curvature or strong parameter correlation, the actual coverage probability may deviate from the nominal level because the true distribution of $f(x_0, \hat{\theta})$ is not exactly normal.
+
+### One-Sided Tolerance Limits
+
+Following **Equation 3.2.6 (K&M page 63)** with the nonlinear substitution, the one-sided tolerance factor is:
+
+\begin{equation}
+k_1(d) = d \cdot t_{n-p; 1-\alpha}\left(\frac{z_\gamma}{d}\right)
+\end{equation}
+
+where:
+
+- $z_\gamma = \Phi^{-1}(\gamma)$ is the standard normal quantile for coverage proportion $\gamma$
+- $t_{n-p; 1-\alpha}(\delta)$ is the $(1-\alpha)$ quantile of the **noncentral t-distribution** with $n-p$ degrees of freedom and noncentrality parameter $\delta = z_\gamma/d$
+- $d^2 = \nabla f_0^T(F^TF)^{-1}\nabla f_0$ is the standardized distance from equation (6)
+
+The **upper one-sided tolerance limit** at a new point $x_0$ is:
+
+\begin{equation}
+f(x_0, \hat{\theta}) + k_1(d) \cdot \hat{\sigma}
+\end{equation}
+
+and the **lower one-sided tolerance limit** is:
+
+\begin{equation}
+f(x_0, \hat{\theta}) - k_1(d) \cdot \hat{\sigma}
+\end{equation}
+
+This replaces the linear regression form $x_0^T\hat{\beta} \pm k_1(d)\hat{\sigma}$ with the nonlinear prediction $f(x_0, \hat{\theta})$.
+
+### Two-Sided Tolerance Intervals
+
+Following **Equation 3.3.6 (K&M page 87)**, the **Wallis Approximation** [@wallis1951] for the two-sided tolerance factor is:
+
+\begin{equation}
+k_{2W}(d) = \sqrt{\frac{(n-p)\chi^2_{1;\gamma}(d^2)}{\chi^2_{n-p; \alpha}}}
+\end{equation}
+
+where:
+
+-   $\chi^2_{1;\gamma}(d^2)$ is the $\gamma$ quantile of a **noncentral chi-square** distribution with 1 degree of freedom and noncentrality parameter $d^2$
+-   $\chi^2_{n-p; \alpha}$ is the $\alpha$ quantile of a **central chi-square** distribution with $n-p$ degrees of freedom
+-   $d^2$ is again the standardized distance from equation (6)
+
+The **two-sided tolerance interval** at a new point $x_0$ is:
+
+\begin{equation}
+f(x_0, \hat{\theta}) \pm k_{2W}(d) \cdot \hat{\sigma}
+\end{equation}
+
+or equivalently, the interval $[L, U]$ where:
+
+\begin{align}
+L &= f(x_0, \hat{\theta}) - k_{2W}(d) \cdot \hat{\sigma} \\
+U &= f(x_0, \hat{\theta}) + k_{2W}(d) \cdot \hat{\sigma}
+\end{align}
+
+The Wallis approximation is particularly useful because it avoids the need to compute noncentral $t$ quantiles directly, instead using the more readily available noncentral $\chi^2$ distribution.
+
+
+
+### Key References
+
+-   **Krishnamoorthy & Mathew (2009), Result 1.2.1 (pages 7, 25):** Technical foundation for tolerance factors $k_1$ (one-sided) and $k_2$ (two-sided) when the mean and variance are estimated
+-   **K&M Section 3.2.1 (page 62):** One-sided tolerance limits for linear regression with estimated mean, directly applicable to nonlinear models via the substitutions described above
+-   **K&M Section 3.3.1 (page 87):** Wallis (1951) Approximation for two-sided tolerance intervals in regression
+-   **Wallis, W. A. (1951):** "Tolerance Intervals for Linear Regression," *Second Berkeley Symposium on Mathematical Statistics and Probability*
+
+------------------------------------------------------------------------
+
+# Practical Example: Long-Term Storage at 5°C
+
+This section demonstrates how to compute and interpret confidence intervals, prediction intervals, and tolerance intervals for pharmaceutical stability data at long-term storage conditions (5°C / 278.15 K).
+
+## Data Preparation and Model Fitting
+
+We use the `evers_supp` dataset, which contains purity measurements from a stability study. The kinetic model assumes first-order degradation following the Arrhenius equation.
+
+```{r example-setup}
+# Load and prepare data
+data(evers_supp)
+
+dat <- evers_supp |>
+  filter(cqa == "Purity", !is.na(y))
+
+# Fit first-order kinetic model
+fit <- fit_kinetic(
+  dat,
+  kinetic_order = 1,
+  trend = "decreasing",
+  log_Ea = FALSE,
+  trefk = 278.15  # Reference temperature at 5°C
+)
+
+# View model summary
+summary(fit)
+```
+
+## Computing Intervals at 5°C
+
+
+We create a prediction grid for long-term storage (5°C) over 36 months and compute three types of intervals:
+
+```{r compute-intervals}
+# Create prediction grid for 5°C (278.15 K) over 36 months
+pred_grid_5C <- data.frame(
+  time = seq(0, 36, by = 3),
+  tempk = 278.15
+)
+
+# Confidence intervals
+# Cover the mean response with 95% confidence
+ci_5C <- predict(fit, newdata = pred_grid_5C, 
+                 interval = "confidence", level = 0.95)
+
+# Prediction intervals
+# Cover a single future observation with 95% probability
+pi_5C <- predict(fit, newdata = pred_grid_5C, 
+                 interval = "prediction", level = 0.95)
+
+
+# Tolerance intervals 
+# Cover 90% of the population with 95% confidence
+ti90_5C <- predict(fit, newdata = pred_grid_5C, 
+                   interval = "tolerance", coverage = 0.90, 
+                   level = 0.95, side = "two")
+
+# Cover 95% of the population with 95% confidence
+ti95_5C <- predict(fit, newdata = pred_grid_5C, 
+                   interval = "tolerance", coverage = 0.95, 
+                   level = 0.95, side = "two")
+
+# Combine results
+intervals_5C <- pred_grid_5C |>
+  mutate(
+    fit = ci_5C[, "fit"],
+    ci_lwr = ci_5C[, "lwr"],
+    ci_upr = ci_5C[, "upr"],
+    pi_lwr = pi_5C[, "lwr"],
+    pi_upr = pi_5C[, "upr"],
+    ti90_lwr = ti90_5C[, "lwr"],
+    ti90_upr = ti90_5C[, "upr"],
+    ti95_lwr = ti95_5C[, "lwr"],
+    ti95_upr = ti95_5C[, "upr"]
+  )
+
+# Display selected timepoints
+intervals_5C |>
+  filter(time %in% c(0, 12, 24, 36)) |>
+  select(time, fit, ci_lwr, ci_upr, pi_lwr, pi_upr, ti95_lwr, ti95_upr) |>
+  knitr::kable(digits = 2, caption = "Intervals at 5°C for Selected Timepoints")
+```
+
+## Visualization
+
+```{r plot-intervals, fig.width=7, fig.height=6}
+# Get observed data at 5°C
+dat_5C <- dat |> filter(abs(tempk - 278.15) < 1)
+
+# Plot all intervals using lines
+ggplot(intervals_5C, aes(x = time)) +
+  # Fitted line (bold black)
+  geom_line(aes(y = fit, color = "Fitted"), linewidth = 1.2) +
+  
+  # Confidence interval
+  geom_line(aes(y = ci_lwr, color = "CI (1\u2212\u03b1 = 0.95)"), linewidth = 0.8, linetype = "solid") +
+  geom_line(aes(y = ci_upr, color = "CI (1\u2212\u03b1 = 0.95)"), linewidth = 0.8, linetype = "solid") +
+  
+  # Prediction interval
+  geom_line(aes(y = pi_lwr, color = "PI (1\u2212\u03b1 = 0.95)"), linewidth = 0.8, linetype = "dashed") +
+  geom_line(aes(y = pi_upr, color = "PI (1\u2212\u03b1 = 0.95)"), linewidth = 0.8, linetype = "dashed") +
+  
+  # Tolerance intervals 90% population with 95% confidence
+  geom_line(aes(y = ti90_lwr, color = "TI (\u03b3 = 0.90)"), linewidth = 0.8, linetype = "dotted") +
+  geom_line(aes(y = ti90_upr, color = "TI (\u03b3 = 0.90)"), linewidth = 0.8, linetype = "dotted") +
+  
+  # Tolerance intervals 95% population with 95% confidence
+  geom_line(aes(y = ti95_lwr, color = "TI (\u03b3 = 0.95)"), linewidth = 0.8, linetype = "dotdash") +
+  geom_line(aes(y = ti95_upr, color = "TI (\u03b3 = 0.95)"), linewidth = 0.8, linetype = "dotdash") +
+  
+  # Observed data
+  geom_point(data = dat_5C, aes(x = time, y = y), 
+             alpha = 0.6, size = 2.5, color = "darkblue") +
+  
+  scale_color_manual(
+    name = NULL,
+    values = c(
+      "Fitted" = "black",
+      "CI (1\u2212\u03b1 = 0.95)" = "blue",
+      "PI (1\u2212\u03b1 = 0.95)" = "green",
+      "TI (\u03b3 = 0.90)" = "orange",
+      "TI (\u03b3 = 0.95)" = "red"
+    ),
+    breaks = c("Fitted", "CI (1\u2212\u03b1 = 0.95)", "PI (1\u2212\u03b1 = 0.95)", "TI (\u03b3 = 0.90)", "TI (\u03b3 = 0.95)")
+  ) +
+  labs(
+    title = "Statistical Intervals for Long-Term Storage at 5°C",
+    subtitle = "First-order kinetic degradation model",
+    x = "Time (months)", 
+    y = "Purity (%)"
+  ) +
+  theme(legend.position = "bottom")
+```
+
+
+------------------------------------------------------------------------
+
+## References
+
+<div id="refs"></div>

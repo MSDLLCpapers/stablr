@@ -1,0 +1,25 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+inst/doc
+.DS_Store
+/doc/
+/Meta/
+image.png
+
+# Built vignette artifacts (regenerated on build)
+vignettes/*.html
+
+# pkgdown site output (built locally or via CI)
+docs/
+
+# Claude Code context files
+**/CLAUDE.md
+.claude/
+investigate_bugs.R
+demo_ginv_failure.R
+demo_new_functions.R
+
+/.quarto/
+**/*.quarto_ipynb

@@ -1,0 +1,40 @@
+Package: stablr
+Title: Advanced Kinetic Modeling
+Version: 1.0.0
+Authors@R: c(
+    person(given = "Federico", family = "Ferrari", email = "federico.ferrari@msd.com", role = c("aut", "cre")),
+    person(given = "Samantha", family = "Gleich", email = "samantha.gleich@msd.com", role = c("aut")),
+    person(given = "Michael", family = "Johnson", email = "michael.johnson6@msd.com", role = c("aut")),
+    person(given = "Qiaohui", family = "Zhou", email = "qiaohui.zhou@msd.com", role = c("aut"))
+    )
+Description: Provides tools for kinetic modeling of stability data. It provides a comprehensive framework for fitting and analyzing various degradation reaction models, incorporating the modified Arrhenius equation for temperature-dependent kinetics.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Depends:
+    R (>= 3.5)
+LazyData: true
+Imports:
+    assertthat,
+    deSolve,
+    dplyr,
+    MASS,
+    magrittr,
+    minpack.lm,
+    gslnls,
+    glue, 
+    purrr,
+    numDeriv,
+    rlang,
+    stats
+Suggests:
+    ggplot2,
+    tidyverse,
+    knitr,
+    rmarkdown,
+    stringr,
+    testthat (>= 3.0.0),
+    tidyr
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.0

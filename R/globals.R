@@ -1,0 +1,29 @@
+utils::globalVariables(
+  c(
+    ".total",
+    "A0",
+    "B0",
+    "C0",
+    "Degraded_A",
+    "Ea",
+    "Ea_B",
+    "Ea_C",
+    "Observed_A",
+    "Observed_B",
+    "Observed_C",
+    "True_A",
+    "True_B",
+    "True_C",
+    "k",
+    "k_B",
+    "k_C",
+    "k_total",
+    "kref",
+    "kref_B",
+    "kref_C",
+    "rate_time",
+    "temp",
+    "tempk",
+    "time"
+  )
+)

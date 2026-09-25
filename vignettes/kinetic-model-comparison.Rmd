@@ -1,0 +1,200 @@
+---
+title: "Kinetic Model Comparison"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Kinetic Model Comparison}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+```{r setup, warning=FALSE,message=FALSE}
+library(stablr)
+library(tidyverse)
+
+# Shared palette for storage temperatures, used throughout.
+temp_cols <- c("navy", "dodgerblue", "lightgreen", "darkgoldenrod2", "red3")
+```
+
+  
+## Introduction - Model Comparison
+Often times, we don't know the best kinetic rate law (e.g., zero-order, first-order, etc.) to use to describe a stability reaction. The `stablr` package allows you to fit multiple kinetic models to the same attribute(s) seamlessly, ultimately providing multiple models that can be compared. Here, we demonstrate how the `fit_kinetic()` function can be used to compare models trained on the same CQA data that have different underlying assumptions about the kinetic rate law governing the reaction over time. 
+
+  
+## Visualize Raw Data 
+It is always a good idea to visualize your raw data over time and across temperatures before modeling. 
+```{r viz, fig.width=6,fig.height=4,fig.align="center", warning=FALSE,message=FALSE}
+data(evers_supp)
+df <- evers_supp |> dplyr::filter(cqa == "Purity", !is.na(y))
+
+ggplot2::ggplot(df, ggplot2::aes(x = time, y = y, color = as.factor(temp))) +
+  ggplot2::geom_smooth(method = "lm", se = FALSE) +
+  ggplot2::geom_point(size = 2) +
+  ggplot2::theme_bw(base_size = 14) +
+  ggplot2::xlab("Time (months)") +
+  ggplot2::ylab("CQA Measurement") +
+  ggplot2::scale_color_manual(
+    name = "Temperature (°C)",
+    values = temp_cols
+  )
+
+```
+
+  
+## Prepare Data
+We will use time split validation to evaluate kinetic models that are fit with different underlying kinetic raw law assumptions. We will train our models on ~80% of our data and test the models using our hold-out data (~20%).
+```{r prep_data}
+df_train <- df |> dplyr::filter(time <= 6)
+df_test <- df |> dplyr::filter(time > 6)
+```
+
+  
+## Train Models
+```{r train_models}
+# Zero order model
+zero_order <- stablr::fit_kinetic(df_train,
+                                  kinetic_order = 0,
+                                  trend = "decreasing",
+                                  log_Ea = FALSE,
+                                  trefk = 278.15)
+
+# First order model
+first_order <- stablr::fit_kinetic(df_train,
+                                  kinetic_order = 1,
+                                  trend = "decreasing",
+                                  log_Ea = FALSE,
+                                  trefk = 278.15)
+
+# Second order model
+second_order <- stablr::fit_kinetic(df_train,
+                                  kinetic_order = 2,
+                                  trend = "decreasing",
+                                  log_Ea = FALSE,
+                                  trefk = 278.15)
+
+# Collect models in a named list
+models <- list(
+  `Zero-order`   = zero_order,
+  `First-order`  = first_order,
+  `Second-order` = second_order
+)
+order_levels <- names(models)
+```
+
+  
+## Compare Models AIC/BIC
+Now we will use the AIC/BIC criteria to compare these 3 models that were trained on the same dataset. These model evaluation statistics can help you determine which model provides the best balance between fit and simplicity. Lower AIC/BIC values indicate that a model is more well-suited for your data. 
+```{r compare}
+# AIC and BIC
+ic_tbl <-
+  imap_dfr(models, ~ tibble(
+    model = .y,
+    AIC   = AIC(.x),
+    BIC   = BIC(.x)
+  )) |>
+  mutate(model = factor(model, levels = order_levels)) |>
+  arrange(model)
+
+print(ic_tbl)
+```
+
+  
+## Evaluate Model Fits
+We can also use our hold-out test data to evaluate the accuracy of the 3 model fits. We will use our trained models to generate predictions for the test data. We will then calculate the RMSE and MAE values using the test data and the model predictions. Lower RMSE and MAE values indicate models with better predictive accuracy.
+```{r eval}
+# Helpers
+rmse <- function(y, pred) sqrt(mean((y - pred)^2, na.rm = TRUE))
+mae  <- function(y, pred) mean(abs(y - pred), na.rm = TRUE)
+
+# Predictions on the test set + error metrics
+pred_df <- bind_rows(
+  df_test |> mutate(
+    fit = predict(zero_order, df_test),
+    Model = "Zero-order"
+  ),
+  df_test |> mutate(
+    fit = predict(first_order, df_test),
+    Model = "First-order"
+  ),
+  df_test |> mutate(
+    fit = predict(second_order, df_test),
+    Model = "Second-order"
+  )
+)
+
+# Metrics Table
+metrics_tbl <-
+  pred_df |>
+  group_by(Model) |>
+  summarise(
+    RMSE = rmse(y, fit),
+    MAE  = mae(y, fit),
+    .groups = "drop"
+  ) |>
+  mutate(model = factor(Model, levels = order_levels)) |>
+  arrange(model)
+print(metrics_tbl)
+```
+
+The zero-order model had the lowest AIC/BIC value and the lowest RMSE/MAE values. Together, these analyses suggest that the zero-order model is most appropriate model to use to represent these CE-SDS data. 
+
+
+## Re-train Model on All Data
+Now that we have selected a model that best suits the data, we can re-train the zero-order model on all available data to generate long-term projections.
+```{r retrain}
+zero_order <- stablr::fit_kinetic(
+  df,
+  kinetic_order = 0,
+  trend = "decreasing",
+  log_Ea = FALSE,
+  trefk = 278.15
+)
+
+summary(zero_order)
+```
+
+  
+## Generate Long-term Predictions
+
+We can use our fully-fitted model to generate long-term predictions at our anticipated storage temperature.
+
+```{r long-term,fig.width=6,fig.height=4,fig.align="center", warning=FALSE,message=FALSE}
+long_term <- tibble(temp = 5, time = 48, tempk = 278.15)
+df_pred <- bind_rows(df, long_term)
+
+preds <- predict(
+  zero_order,
+  newdata = df_pred,
+  interval = "prediction",
+  level = 0.95
+)
+df_pred <- bind_cols(df_pred, preds)
+
+df_pred |> 
+  ggplot(
+    aes(
+      x = time,
+      y = fit,
+      color = as.factor(temp),
+      fill = as.factor(temp)
+    )) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2) +
+  geom_point(aes(x = time, y = y), data = df, shape = 8) +
+  xlab("Time (months)") +
+  ylab("CQA Prediction +/- 95% PI") +
+  scale_color_manual(name = "Temperature (°C)", values = temp_cols) +
+  scale_fill_manual(name = "Temperature (°C)", values = temp_cols)+
+  theme_bw(base_size=14)
+```
+

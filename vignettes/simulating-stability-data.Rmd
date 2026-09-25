@@ -1,0 +1,325 @@
+---
+title: "Simulating Stability Data"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+vignette: >
+  %\VignetteIndexEntry{Simulating Stability Data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5,
+  fig.align = "center"
+)
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+library(stablr)
+library(tidyverse)
+theme_set(theme_bw())
+
+# A shared palette for storage temperatures, used throughout.
+temp_cols <- c("5" = "navy", "25" = "darkgoldenrod2", "30" = "seagreen",
+               "37" = "orange2", "40" = "red3")
+```
+
+## Introduction
+
+`simulate_kinetic_data()` generates stability data from the kinetic models included in `stablr`.
+You choose the reaction mechanism, the kinetic order, the temperature
+dependence and the batch-to-batch spread; the function draws the generating
+parameters, evolves the trajectories with the modified Arrhenius equation, and
+adds measurement error. 
+
+The two simulated datasets included with the package, `nrcesds` and `upsec`, were
+built with this function. This vignette explains how a call is put together, begins with the simplest case, and reproduces both datasets exactly. Every call returns a **long-format** data frame with one row per (design point × measured species); the warm-up below shows the layout.
+
+
+## Inputs of `simulate_kinetic_data()`
+
+The function `simulate_kinetic_data()` has three key inputs: the **study
+design**, the **mechanism**, and the **parameters**.
+
+### Study design
+
+| Argument | Role |
+|---|---|
+| `time_points` | Numeric vector of sampling times (e.g. months). |
+| `temperatures_C` | Numeric vector of storage temperatures in °C. |
+| `factors` | Named integer vector of extra design factors and their level counts, e.g. `c("batch" = 6)`. Optional. |
+| `intercept_cols` | Which factors shift the *initial* values ($A_0$, …). |
+| `rate_cols` | Which factors shift the *rate constants* and activation energies. |
+
+The design is the full crossing of `time_points`, `temperatures_C`, and any
+`factors`. A factor only alters the generating parameters when it is listed in
+`intercept_cols` or `rate_cols`; named but placed in neither, it simply
+replicates the design grid.
+
+### Mechanism
+
+| Argument | Options | Meaning |
+|---|---|---|
+| `reaction_type` | `"kinetic"`, `"single_deg"`, `"parallel"` | Track only A; A → B; or A → B and A → C. |
+| `kinetic_order` | `0`, `1`, `2` | Zero-, first-, or second-order kinetics. |
+| `trend` | `"increasing"`, `"decreasing"` | Whether A grows or decays. (`"parallel"` is always decreasing.) |
+| `trefk` | Kelvin | Reference temperature for the Arrhenius reparameterization (default 298.15 K = 25 °C). |
+
+Rate constants are temperature-dependent through the modified Arrhenius
+equation,
+$$k(T) = k_{\text{ref}} \, \exp\!\left(\frac{E_a}{R}\left(\frac{1}{T_{\text{ref}}} - \frac{1}{T} \right)\right),$$
+so higher temperatures degrade faster. This is the same parameterization the
+`fit_*` functions estimate.
+
+### Parameters
+
+`params` is a list. Every generating quantity is given as a **center** plus a
+**spread**, and each is drawn from a distribution matched to its physical
+support:
+
+| Quantity | Center | Spread | Distribution |
+|---|---|---|---|
+| Initial values | `A0_target` (`B0_target`, `C0_target`) | `A0_target_sd` (`0` pins to target) | Dirichlet/Beta, non-negative, sums to `A_max` (default 100) |
+| Rate constants | `kref_median` (`krefB_median`, `krefC_median`) | `kref_gsd` ($\ge 1$; `1` = none) | lognormal, strictly positive |
+| Activation energy | `Ea` (`EaB`, `EaC`) | — | deterministic within a factor level |
+| Measurement error | `sigma_err` | — | additive noise SD per observation |
+
+The B/C variants apply to the multi-species (`single_deg`, `parallel`) models;
+see `?simulate_kinetic_data` for the full distributional detail. Two more
+arguments shape the *observations*:
+
+- `noise` — `"mass_balance"` (default) draws row-centered errors so the measured
+  species still sum to `A_max`; `"independent"` draws an independent error per
+  species, matching the least-squares assumption of the `fit_*` estimators. For
+  a single measured species the two coincide.
+- `clamp` — if `TRUE`, observed values are censored to the physical bounds
+  `[A_min, A_max]` and a warning reports how many were clamped.
+
+
+## Warm-up: A Simple Example
+
+The simplest call has no factors and tracks a single attribute
+(`reaction_type = "kinetic"`). Here purity decays by first-order kinetics at
+three temperatures:
+
+```{r warmup}
+warmup <- simulate_kinetic_data(
+  time_points    = c(0, 1, 2, 3, 6, 9, 12, 18, 24),
+  temperatures_C = c(5, 25, 40),
+  reaction_type  = "kinetic",
+  kinetic_order  = 1,
+  trend          = "decreasing",
+  params = list(
+    A0_target    = 98,      # starting purity (%)
+    A0_target_sd = 0.5,     # batch-to-batch spread on A0
+    Ea           = 85000,   # activation energy (J/mol)
+    kref_median  = 2.5e-4,  # rate at trefk (25 C)
+    kref_gsd     = 1.05,    # geometric spread on the rate
+    sigma_err    = 0.3      # measurement-error SD
+  ),
+  sdpt = 123
+)
+
+head(warmup)
+```
+
+The columns are:
+
+- **any factor columns** you defined (e.g. `batch`)
+- `time` — the sampling time (e.g. months)
+- `temp` — storage temperature in °C, and `tempk` its value in Kelvin
+- `cqa` — the name of the measured quality attribute
+- `y` — the observed value.
+
+Plotting the trajectories, the Arrhenius dependence is visible directly: the
+40 °C trajectory falls steeply, 25 °C gently, and 5 °C is nearly flat over two
+years.
+
+```{r warmup-plot}
+ggplot(warmup, aes(time, y, color = factor(temp))) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(name = "Temperature (°C)", values = temp_cols) +
+  labs(x = "Time (months)", y = "Purity (%)",
+       title = "Generic first-order decay")
+```
+
+
+## Recreating `nrcesds`
+
+`nrcesds` mimics data generated from non-reduced CE-SDS assay: a main peak degrading into minor
+peaks, modelled as a single degradation (A → B) with second-order kinetics
+across six batches and five temperatures. This is the exact call used to build
+the dataset included in the package.
+
+```{r nrcesds}
+nrcesds_sim <- simulate_kinetic_data(
+  factors        = c("batch" = 6),
+  intercept_cols = "batch",
+  time_points    = c(0, 1, 2, 3, 6, 9, 12, 18, 24, 30, 36),
+  temperatures_C = c(5, 25, 30, 37, 40),
+  trefk          = 278.15,          # reference at 5 C
+  reaction_type  = "single_deg",
+  kinetic_order  = 2,
+  trend          = "decreasing",
+  params = list(
+    A0_target    = 98,
+    B0_target    = 2,               # A0 + B0 = A_max = 100
+    A0_target_sd = 0.4,
+    Ea           = 80000,
+    kref_median  = 5e-4,
+    kref_gsd     = 1.05,
+    sigma_err    = 0.3
+  ),
+  component_names = list(comp_A = "NR Major Peak", comp_B = "NR Minor Peaks"),
+  clamp = TRUE,
+  sdpt  = 42,
+  return_params = TRUE     # also keep the drawn parameters (see below)
+)
+```
+
+`component_names` renames the two species, so `cqa` carries the assay's own
+labels. `return_params = TRUE` returns a list with the data in `$data` and the
+parameters actually drawn in `$parameters` (used in the *Peeking at the truth*
+section below). Plotting the major and minor peaks side by side, with the six
+batches overlaid at each temperature:
+
+```{r nrcesds-plot, fig.height=4}
+ggplot(nrcesds_sim$data, aes(time, y, color = factor(temp), group = interaction(batch, temp))) +
+  geom_line(alpha = 0.6) +
+  geom_point(size = 0.8) +
+  facet_wrap(~ cqa, scales = "free_y") +
+  scale_color_manual(name = "Temperature (°C)", values = temp_cols) +
+  labs(x = "Time (months)", y = "Value (%)")
+```
+
+The result is identical to the packaged `nrcesds`:
+
+```{r nrcesds-identical}
+data(nrcesds)
+all.equal(as.data.frame(nrcesds_sim$data), as.data.frame(nrcesds))
+```
+
+
+## Recreating `upsec`
+
+`upsec` mimics a UPSEC assay, where the main species degrades into *two*
+products simultaneously: high- and low-molecular-weight species. This is the
+parallel mechanism (A → B and A → C) with first-order kinetics. The only
+structural differences from `nrcesds` are `reaction_type = "parallel"`, the
+first-order kinetics, and the separate `EaB`/`EaC` and `krefB`/`krefC` rate
+parameters for the two pathways.
+
+```{r upsec}
+upsec_sim <- simulate_kinetic_data(
+  factors        = c("batch" = 6),
+  intercept_cols = "batch",
+  time_points    = c(0, 1, 2, 3, 6, 9, 12, 18, 24, 30, 36),
+  temperatures_C = c(5, 25, 30, 37, 40),
+  trefk          = 278.15,
+  reaction_type  = "parallel",
+  kinetic_order  = 1,
+  trend          = "decreasing",
+  params = list(
+    A0_target    = 98,
+    B0_target    = 0.8,
+    C0_target    = 1.2,             # A0 + B0 + C0 = A_max = 100
+    A0_target_sd = 0.5,
+    EaB          = 85000,
+    EaC          = 80000,
+    krefB_median = 4e-4,
+    krefB_gsd    = 1.05,
+    krefC_median = 2e-4,
+    krefC_gsd    = 1.05,
+    sigma_err    = 0.4
+  ),
+  component_names = list(comp_A = "Total Main", comp_B = "HMWS", comp_C = "LMWS"),
+  clamp = TRUE,
+  sdpt  = 123
+)
+```
+
+The `clamp = TRUE` warning reports that a couple of near-zero HMWS/LMWS
+observations were censored to `[0, 100]` — expected for a minor species with
+noise near the boundary. Plotting all three attributes:
+
+```{r upsec-plot, fig.height=3.2}
+ggplot(upsec_sim, aes(time, y, color = factor(temp), group = interaction(batch, temp))) +
+  geom_line(alpha = 0.6) +
+  geom_point(size = 0.8) +
+  facet_wrap(~ cqa, scales = "free_y") +
+  scale_color_manual(name = "Temperature (°C)", values = temp_cols) +
+  labs(x = "Time (months)", y = "Value (%)")
+```
+
+As the Total Main species declines, the two degradants accumulate in proportion
+to their relative rate constants. Again, the result matches the shipped dataset:
+
+```{r upsec-identical}
+data(upsec)
+all.equal(as.data.frame(upsec_sim), as.data.frame(upsec))
+```
+
+
+## Peeking at the truth
+
+The distinctive value of a simulator is that the truth is knowable. Two devices
+expose it.
+
+### The drawn parameters
+
+Because the `nrcesds` call above was made with `return_params = TRUE`, the
+parameters drawn for each factor combination are already available in
+`nrcesds_sim$parameters`:
+
+```{r return-params}
+# Per-batch initial values, drawn around the targets A0 = 98, B0 = 2:
+nrcesds_sim$parameters$intercept_params
+```
+
+Here only `batch` was placed in `intercept_cols`, so the initial values vary by
+batch while the single rate constant (not in `rate_cols`) is shared:
+
+```{r return-params-rate}
+nrcesds_sim$parameters$rate_params
+nrcesds_sim$parameters$fixed_params[c("trefk", "kinetic_order", "trend", "sigma_err")]
+```
+
+### The noise-free trajectory
+
+To see the underlying signal beneath the measurement error, re-run the *same*
+call with `sigma_err = 0` and the *same* seed. The seed fixes the parameter
+draws, so the noise-free run traces the exact truth the noisy points scatter
+around. Using the warm-up example:
+
+```{r truth-overlay}
+truth <- simulate_kinetic_data(
+  time_points    = c(0, 1, 2, 3, 6, 9, 12, 18, 24),
+  temperatures_C = c(5, 25, 40),
+  reaction_type  = "kinetic",
+  kinetic_order  = 1,
+  trend          = "decreasing",
+  params = list(A0_target = 98, A0_target_sd = 0.5, Ea = 85000,
+                kref_median = 2.5e-4, kref_gsd = 1.05,
+                sigma_err = 0),      # <- noise switched off
+  sdpt = 123                          # <- same seed as `warmup`
+)
+
+ggplot(warmup, aes(time, color = factor(temp))) +
+  geom_point(aes(y = y)) +
+  geom_line(data = truth, aes(y = y)) +
+  scale_color_manual(name = "Temperature (°C)", values = temp_cols) +
+  labs(x = "Time (months)", y = "Purity (%)",
+       title = "Observed points (with noise) vs. true curves (no noise)")
+```
+
+The lines are the true first-order decay; the points are those same
+trajectories seen through measurement error of SD `sigma_err = 0.3`.
