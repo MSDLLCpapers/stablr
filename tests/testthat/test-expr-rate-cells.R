@@ -25,12 +25,10 @@ test_that("a dotted level yields an indicator that matches its own rows", {
   d <- data.frame(batch = c("A.1", "B"), stringsAsFactors = FALSE)
   r <- expr_rate(d, "batch")
 
-  expect_equal(r$params, c("k_batch_A_1", "k_batch_B"))
+  expect_equal(r$params, c("k_batch_A1", "k_batch_B"))
   # The level must be compared whole, not split into a bogus product. The
-  # comparison target is the sanitize()d level, so the dot is stripped from both
-  # sides -- the column is sanitized at evaluation time to match, which is what
-  # lets the expression work on raw data too (see sanitized_col()).
-  expect_match(r$expr, "== 'A1'", fixed = TRUE)
+  # comparison target is the level as it appears in the data.
+  expect_match(r$expr, "== 'A.1'", fixed = TRUE)
   expect_match(r$expr, "== 'B'", fixed = TRUE)
   # the split product compared the column against the fragment after the dot
   expect_false(grepl("== 1)", r$expr, fixed = TRUE))
@@ -52,8 +50,8 @@ test_that("dotted levels work with two or more rate_cols", {
 test_that("multiple dots in a level are handled", {
   d <- data.frame(b = c("x.y.z", "p"), stringsAsFactors = FALSE)
   r <- expr_rate(d, "b")
-  # again the sanitize()d level, compared whole rather than split on the dots
-  expect_match(r$expr, "== 'xyz'", fixed = TRUE)
+  # again the level as in the data, compared whole rather than split on the dots
+  expect_match(r$expr, "== 'x.y.z'", fixed = TRUE)
   expect_match(r$expr, "== 'p'", fixed = TRUE)
   expect_equal(eval_rate(r, d, rep(7, 2)), c(7, 7))
 })
@@ -86,32 +84,72 @@ test_that("each indicator selects exactly its own rows", {
 
 # ── cell set and ordering preserved ────────────────────────────────────────
 
-test_that("observed_cells reproduces interaction(drop = TRUE) exactly", {
+test_that("observed_cells orders cells by parameter-name label", {
+  # Cells are character labels ordered by parameter-name label, first column
+  # varying fastest, regardless of column type or factor levels.
   cases <- list(
     list(data.frame(f = c("b", "a", "b", "a", "c"),
                     g = c("y", "x", "x", "x", "y"),
-                    stringsAsFactors = FALSE), c("f", "g")),
-    # numeric columns must sort numerically (2 before 10), not as text
+                    stringsAsFactors = FALSE), c("f", "g"),
+         c("a.x", "b.x", "b.y", "c.y")),
+    # numbers sort as text ("10" before "2"), factors ignore declared levels
     list(data.frame(n = c(10, 2, 2),
                     f = factor(c("q", "p", "q"), levels = c("q", "p"))),
-         c("n", "f")),
-    list(data.frame(n = c(10, 2, 33, 2)), "n"),
-    # factors keep their declared level order
-    list(data.frame(f = factor(c("z", "y"), levels = c("z", "y"))), "f"),
+         c("n", "f"), c("2.p", "10.q", "2.q")),
+    list(data.frame(n = c(10, 2, 33, 2)), "n", c("10", "2", "33")),
+    list(data.frame(f = factor(c("z", "y"), levels = c("z", "y"))), "f",
+         c("y", "z")),
     list(expand.grid(a = c("A", "B"), b = c("1", "2"),
-                     stringsAsFactors = FALSE), c("a", "b")),
-    list(data.frame(l = c(TRUE, FALSE, TRUE)), "l")
+                     stringsAsFactors = FALSE), c("a", "b"),
+         c("A.1", "B.1", "A.2", "B.2")),
+    list(data.frame(l = c(TRUE, FALSE, TRUE)), "l", c("FALSE", "TRUE"))
   )
 
   for (cs in cases) {
     d <- cs[[1]]; cols <- cs[[2]]
-    old <- as.character(levels(interaction(d[, cols, drop = FALSE],
-                                           drop = TRUE)))
     ce  <- observed_cells(d, cols)
-    new <- do.call(paste, c(lapply(cols, function(v) as.character(ce[[v]])),
-                            sep = "."))
-    expect_equal(new, old, info = paste(cols, collapse = ","))
+    got <- do.call(paste, c(lapply(cols, function(v) ce[[v]]), sep = "."))
+    expect_equal(got, cs[[3]], info = paste(cols, collapse = ","))
+    expect_true(all(vapply(ce, is.character, logical(1))))
   }
+})
+
+# ── parameter order and grouping of numeric and factor levels ──────────────
+
+sim_groups <- function(groups, k) {
+  do.call(rbind, lapply(seq_len(nrow(groups)), function(i) {
+    g  <- expand.grid(time = c(0, 3, 6, 12), tempk = c(298.15, 313.15))
+    kk <- k[i] * exp(80000 / 8.314 * (1 / 298.15 - 1 / g$tempk))
+    cbind(groups[rep(i, nrow(g)), , drop = FALSE], g,
+          y = 100 * exp(-kk * g$time), row.names = NULL)
+  }))
+}
+
+test_that("numeric rate levels keep their parameter order", {
+  d <- sim_groups(data.frame(n = c(2, 10)), c(0.01, 0.03))
+  fit <- fit_kinetic(d, kinetic_order = 1, trend = "decreasing", rate_cols = "n")
+  expect_equal(grep("^k_", names(coef(fit)), value = TRUE), c("k_n_10", "k_n_2"))
+  expect_equal(unname(coef(fit)["k_n_2"]), 0.01, tolerance = 1e-4)
+})
+
+test_that("suffixed rate names map to the same cells whatever the factor levels", {
+  # Both cells are named k_f_g_a_b_b; the .1/.2 suffixes follow label order, not
+  # factor level order.
+  d <- sim_groups(data.frame(f = c("a_b", "a"), g = c("b", "b_b")), c(0.01, 0.03))
+  d$g <- factor(d$g, levels = c("b_b", "b"))
+  fit <- fit_kinetic(d, kinetic_order = 1, trend = "decreasing",
+                     rate_cols = c("f", "g"))
+  expect_equal(unname(coef(fit)["k_f_g_a_b_b.1"]), 0.01, tolerance = 1e-4)  # (a_b, b)
+  expect_equal(unname(coef(fit)["k_f_g_a_b_b.2"]), 0.03, tolerance = 1e-4)  # (a, b_b)
+})
+
+test_that("numeric values that print alike are one group", {
+  # 0.3 and 0.1 * 3 differ but share the label "0.3", so they form one group.
+  d <- sim_groups(data.frame(x = c(0.3, 0.1 * 3)), c(0.02, 0.02))
+  expect_length(unique(d$x), 2L)
+  fit <- fit_kinetic(d, kinetic_order = 1, trend = "decreasing",
+                     intercept_cols = "x", rate_cols = "x")
+  expect_equal(sort(names(coef(fit))), sort(c("Ea", "y0_x_03", "k_x_03")))
 })
 
 test_that("only observed cells get a parameter (incomplete designs)", {
@@ -166,7 +204,7 @@ test_that("a manually composed model with dotted levels recovers truth", {
 
   m  <- gslnls::gsl_nls(fml, data = g, start = st)
   cc <- coef(m)
-  expect_equal(unname(cc[["k_batch_A_1"]]), 0.03,  tolerance = 1e-4)
+  expect_equal(unname(cc[["k_batch_A1"]]),  0.03,  tolerance = 1e-4)
   expect_equal(unname(cc[["k_batch_B"]]),   0.01,  tolerance = 1e-4)
   expect_equal(unname(cc[["y0"]]),          100,   tolerance = 1e-4)
   expect_equal(unname(cc[["Ea"]]),          80000, tolerance = 1e-4)

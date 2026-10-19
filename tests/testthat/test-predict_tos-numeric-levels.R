@@ -1,11 +1,8 @@
 # All-digit grouping levels must be compared as strings in the composite
 # propagation, exactly as in the fitted formula.
 #
-# format_level() emits an all-digit level unquoted, and build_kinetic() repairs
-# that by running quote_numeric_levels() over the ASSEMBLED RHS -- not over the
-# intercept and rate parts, which stay unquoted in the formula's closure. So
-# .build_composite_fn_kinetic() cannot simply reuse those parts: it has to
-# re-apply the quoting itself.
+# Comparison targets are quoted as written (see level_literal()), so all-digit
+# levels keep leading zeros in the stored parts and the formula.
 #
 # Without it the composite emits (batch == 0000803274). R coerces the level to
 # the numeric 803274, which never equals the character "0000803274", so the
@@ -58,17 +55,8 @@ test_that("a leading-zero all-digit level predicts the fitted value", {
 })
 
 test_that("the stored expression parts are quoted at construction", {
-  # This test used to assert the opposite -- that the parts were unquoted, and
-  # that quote_numeric_levels() repaired them afterwards -- and said that if the
-  # builders ever quoted the parts themselves the extra step could go. They now
-  # do: sanitized_level() quotes every comparison target as it is written,
-  # because sanitized_col() coerces the column to character and a bare numeric
-  # target cannot match a string. quote_numeric_levels() is still applied to the
-  # assembled right-hand sides but is a no-op on an already-quoted target.
-  #
-  # Matched on the comparison alone: the column reference is wrapped in a
-  # sanitising gsub() (see sanitized_col()), so "batch ==" is no longer adjacent
-  # text. What matters is that the leading zeros survive, in both places.
+  # Leading zeros survive in the stored expression parts and in the fitted
+  # formula.
   lv  <- c("0000803274", "0000803279")
   fit <- digit_level_fit(lv)
   stored <- get("int_part", envir = environment(stats::formula(fit)))$expr

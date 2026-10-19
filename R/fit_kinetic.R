@@ -101,7 +101,6 @@ build_kinetic <- function(
   }
   
   ## Assemble formula and return ---------------------------------------
-  rhs <- quote_numeric_levels(rhs)
   fml <- stats::as.formula(glue::glue("`{outcome_var}` ~ {rhs}"))
   
   # Tokenise rather than grep, so renamed or extra parameters still get seeded.
@@ -124,6 +123,7 @@ build_kinetic <- function(
          Yinf = Yinf,
          rate_cols = rate_cols,
          rate_cells = rate_cells(df, rate_cols),
+         group_levels = group_levels(df, c(intercept_cols, rate_cols)),
          unsupported_rate_cells = unsupported_rate_cells(df, rate_cols, time_var,
                                                          intercept_cols, temp_var),
          intercept_cols = intercept_cols,
@@ -262,20 +262,9 @@ fit_kinetic <- function(
                           temp_expr_params(temp_fml, temp_var, covar_cols))
   check_trend_direction(df, outcome_var, time_var, trend, temp_var)
 
-  df_model <- sanitize_group_values(df, c(intercept_cols, rate_cols))
-
-  # ──3. Record the mapping from original -> sanitized values ──────
-  group_cols <- unique(c(intercept_cols, rate_cols))
-  sanitize_map <- list()
-  for (col in group_cols) {
-    # Names = original, values = sanitized; relies on sanitize_group_values()
-    lookup <- stats::setNames(
-      as.character(df_model[[col]]),
-      as.character(df[[col]])
-    )
-    lookup <- lookup[!duplicated(names(lookup))]
-    sanitize_map[[col]] <- lookup
-  }
+  # Check that grouping levels give valid, distinct parameter names.
+  check_group_levels(df, c(intercept_cols, rate_cols))
+  df_model <- df
   
   # ── 4. Build model formula ───────────────────────────────
   build   <- build_kinetic(
@@ -312,6 +301,5 @@ fit_kinetic <- function(
 
   class(mod) <- c("fit_kinetic", class(mod))
   attr(mod, "build") <- build
-  attr(mod, "sanitize_map") <- sanitize_map
   return(mod)
 }

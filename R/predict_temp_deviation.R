@@ -75,17 +75,18 @@
   vals
 }
 
-#' Map schedule grouping columns onto their fitted (sanitized) levels
+#' Check schedule grouping columns against their fitted levels
 #'
-#' The \code{fit_*()} functions sanitize grouping-column values before building
-#' model expressions, so a schedule supplied to \code{predict_tos()} must be put
-#' through the same mapping before its levels can be matched against fitted
-#' parameters.
+#' Schedule grouping values must match the fitted labels exactly. For
+#' \code{fit_sb()}, values are sanitized before matching.
 #'
 #' @param schedule The schedule data frame.
-#' @param group_cols Character vector of grouping columns to map.
-#' @param sanitize_map Named list of per-column lookup vectors, as stored in
-#'   \code{attr(fit, "sanitize_map")}. May be \code{NULL}.
+#' @param group_cols Character vector of grouping columns to check.
+#' @param known_levels Named list of the levels each column was fitted on
+#'   (\code{build$settings$group_levels}, or for \code{fit_sb} the sanitized
+#'   levels in \code{build$data}). A \code{NULL} element skips that column.
+#' @param sanitize_values Logical; sanitize the schedule values before matching
+#'   and return them sanitized (\code{fit_sb}).
 #' @param rate_cols,rate_cells The fitted rate grouping columns and the
 #'   combinations of them that were observed, from \code{build$settings}. Used to
 #'   reject a schedule naming a combination that has no fitted rate; \code{NULL}
@@ -93,52 +94,39 @@
 #' @param unsupported Under-supported rate cells from
 #'   \code{build$settings$unsupported_rate_cells}. Used to reject a schedule that
 #'   extrapolates a rate which was never identified; \code{NULL} skips the check.
-#' @param known_levels Named list of the already-sanitized levels each column was
-#'   fitted on, for fitters that store no \code{sanitize_map} (\code{fit_sb}).
-#'   Supplies the same unseen-level rejection on that path; \code{NULL} skips it.
 #'
-#' @return \code{schedule} with its grouping columns replaced by fitted levels.
+#' @return \code{schedule}, with its grouping columns sanitized when
+#'   \code{sanitize_values = TRUE} and otherwise unchanged.
 #' @keywords internal
 #' @noRd
-.sanitize_schedule_groups <- function(schedule, group_cols, sanitize_map,
-                                      rate_cols = NULL, rate_cells = NULL,
-                                      known_levels = NULL, unsupported = NULL) {
+.match_schedule_groups <- function(schedule, group_cols, known_levels,
+                                   sanitize_values = FALSE,
+                                   rate_cols = NULL, rate_cells = NULL,
+                                   unsupported = NULL) {
+
+  # Older fits do not record group_levels.
+  if (!sanitize_values && is.null(known_levels) &&
+      length(group_cols[nzchar(group_cols)])) {
+    stop("This model was fitted with an earlier version of stablr. ",
+         "Refit it to use predict_tos().", call. = FALSE)
+  }
 
   for (col in group_cols) {
     if (!col %in% names(schedule)) next
 
-    vals <- trimws(as.character(schedule[[col]]))
-    lookup <- sanitize_map[[col]]
-    if (!is.null(lookup)) {
-      names(lookup) <- trimws(names(lookup))
-      lookup <- lookup[!duplicated(names(lookup))]
-    }
+    raw  <- as.character(schedule[[col]])
+    vals <- if (sanitize_values) sanitize(raw) else raw
 
-    if (is.null(lookup)) {
-      sanitized <- sanitize(vals)
-      unseen <- setdiff(unique(sanitized), known_levels[[col]])
-      if (!is.null(known_levels[[col]]) && length(unseen)) {
-        stop(
-          sprintf("schedule contains unseen levels in column '%s': %s",
-                  col, paste(unique(vals[sanitized %in% unseen]),
-                             collapse = ", ")),
-          call. = FALSE
-        )
-      }
-      schedule[[col]] <- sanitized
-      next
-    }
-
-    unseen <- setdiff(unique(vals), names(lookup))
-    if (length(unseen)) {
+    unseen <- setdiff(unique(vals), known_levels[[col]])
+    if (!is.null(known_levels[[col]]) && length(unseen)) {
       stop(
         sprintf("schedule contains unseen levels in column '%s': %s",
-                col, paste(unseen, collapse = ", ")),
+                col, paste(sQuote(unique(raw[vals %in% unseen]), FALSE),
+                           collapse = ", ")),
         call. = FALSE
       )
     }
-
-    schedule[[col]] <- unname(lookup[vals])
+    if (sanitize_values) schedule[[col]] <- vals
   }
 
   # Per-column checks above cannot see an unobserved combination, which has no
@@ -161,7 +149,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 .build_composite_fn_kinetic <- function(fit, schedule) {
   build     <- attr(fit, "build")
-  sanitize_map <- attr(fit, "sanitize_map")
 
   # Recover the kinetic model configuration from the formula environment,
   # where build_kinetic() captured its arguments. 
@@ -176,7 +163,6 @@
   group_cols <- unique(c(intercept_cols, rate_cols))
 
   # Reconstruct intercept and rate expressions from schedule
-  # We need to pass sanitized schedule to expr functions
   temp_var <- build$settings$temp_var
   time_var <- build$settings$time_var
 
@@ -184,12 +170,12 @@
   dt_vec    <- schedule$duration
   n_seg     <- length(dt_vec)
 
-  # Extract and sanitize grouping columns from schedule
-  schedule_sanitized <- .sanitize_schedule_groups(schedule, group_cols,
-                                                  sanitize_map,
-                                                  rate_cols,
-                                                  build$settings$rate_cells,
-                                                  unsupported = build$settings$unsupported_rate_cells)
+  # Check the schedule's grouping levels against the fitted levels.
+  schedule_checked <- .match_schedule_groups(schedule, group_cols,
+                                              build$settings$group_levels,
+                                              rate_cols = rate_cols,
+                                              rate_cells = build$settings$rate_cells,
+                                              unsupported = build$settings$unsupported_rate_cells)
 
   # Reuse the intercept and rate expressions that were actually fitted, taken
   # from the formula's closure like kinetic_order / trend above. Re-deriving them
@@ -199,8 +185,6 @@
   # coefficient.
   int_part  <- get("int_part", envir = fn_env)
   rate_part <- get("rate_part", envir = fn_env)
-  int_part$expr  <- quote_numeric_levels(int_part$expr)
-  rate_part$expr <- quote_numeric_levels(rate_part$expr)
 
   arr_expr <- as.character(get("arr_expr", envir = fn_env))
 
@@ -218,16 +202,16 @@
 
     penv <- list2env(as.list(params), parent = baseenv())
 
-    # Build initial data with sanitized grouping columns
+    # Build initial data with grouping columns
     init_data <- data.frame(1)
     names(init_data) <- time_var
     init_data[[time_var]] <- 0
     init_data[[temp_var]] <- tempk_vec[1]
 
-    # Add sanitized grouping columns to init_data
+    # Add grouping columns to init_data
     for (col in group_cols) {
-      if (col %in% names(schedule_sanitized)) {
-        init_data[[col]] <- schedule_sanitized[[col]][1]
+      if (col %in% names(schedule_checked)) {
+        init_data[[col]] <- schedule_checked[[col]][1]
       }
     }
 
@@ -244,10 +228,10 @@
       seg_data[[time_var]] <- dt_vec[i]
       seg_data[[temp_var]] <- tempk_vec[i]
 
-      # Add sanitized grouping columns to seg_data
+      # Add grouping columns to seg_data
       for (col in group_cols) {
-        if (col %in% names(schedule_sanitized)) {
-          seg_data[[col]] <- schedule_sanitized[[col]][i]
+        if (col %in% names(schedule_checked)) {
+          seg_data[[col]] <- schedule_checked[[col]][i]
         }
       }
 
@@ -296,7 +280,6 @@
 .build_composite_fn_singledeg <- function(fit, schedule) {
 
   build <- attr(fit, "build")
-  sanitize_map <- attr(fit, "sanitize_map")
 
   # Extract grouping columns from settings
   intercept_cols <- build$settings$intercept_cols
@@ -329,12 +312,12 @@
   check_composite_params(c(ie_A$expr, ie_B$expr, rate_part$expr, arr_expr),
                         build$param_names)
 
-  # Extract and sanitize grouping columns from schedule
-  schedule_sanitized <- .sanitize_schedule_groups(schedule, group_cols,
-                                                  sanitize_map,
-                                                  rate_cols,
-                                                  build$settings$rate_cells,
-                                                  unsupported = build$settings$unsupported_rate_cells)
+  # Check the schedule's grouping levels against the fitted levels.
+  schedule_checked <- .match_schedule_groups(schedule, group_cols,
+                                              build$settings$group_levels,
+                                              rate_cols = rate_cols,
+                                              rate_cells = build$settings$rate_cells,
+                                              unsupported = build$settings$unsupported_rate_cells)
 
   composite_fn <- function(params, data) {
 
@@ -345,10 +328,10 @@
     init_data[[time_var]] <- 0
     init_data[[temp_var]] <- tempk_vec[1]
 
-    # Add sanitized grouping columns to init_data
+    # Add grouping columns to init_data
     for (col in group_cols) {
-      if (col %in% names(schedule_sanitized)) {
-        init_data[[col]] <- schedule_sanitized[[col]][1]
+      if (col %in% names(schedule_checked)) {
+        init_data[[col]] <- schedule_checked[[col]][1]
       }
     }
 
@@ -363,10 +346,10 @@
       seg_data[[time_var]] <- dt_vec[i]
       seg_data[[temp_var]] <- tempk_vec[i]
 
-      # Add sanitized grouping columns to seg_data
+      # Add grouping columns to seg_data
       for (col in group_cols) {
-        if (col %in% names(schedule_sanitized)) {
-          seg_data[[col]] <- schedule_sanitized[[col]][i]
+        if (col %in% names(schedule_checked)) {
+          seg_data[[col]] <- schedule_checked[[col]][i]
         }
       }
 
@@ -422,7 +405,6 @@
 .build_composite_fn_parallel <- function(fit, schedule) {
 
   build <- attr(fit, "build")
-  sanitize_map <- attr(fit, "sanitize_map")
 
   # Extract grouping columns from settings
   intercept_cols <- build$settings$intercept_cols
@@ -459,12 +441,12 @@
   check_composite_params(c(ie_A$expr, ie_B$expr, ie_C$expr, rp_B$expr,
                           rp_C$expr, arr_B, arr_C), build$param_names)
 
-  # Extract and sanitize grouping columns from schedule
-  schedule_sanitized <- .sanitize_schedule_groups(schedule, group_cols,
-                                                  sanitize_map,
-                                                  rate_cols,
-                                                  build$settings$rate_cells,
-                                                  unsupported = build$settings$unsupported_rate_cells)
+  # Check the schedule's grouping levels against the fitted levels.
+  schedule_checked <- .match_schedule_groups(schedule, group_cols,
+                                              build$settings$group_levels,
+                                              rate_cols = rate_cols,
+                                              rate_cells = build$settings$rate_cells,
+                                              unsupported = build$settings$unsupported_rate_cells)
 
   composite_fn <- function(params, data) {
 
@@ -476,10 +458,10 @@
     init_data[[time_var]] <- 0
     init_data[[temp_var]] <- tempk_vec[1]
 
-    # Add sanitized grouping columns to init_data
+    # Add grouping columns to init_data
     for (col in group_cols) {
-      if (col %in% names(schedule_sanitized)) {
-        init_data[[col]] <- schedule_sanitized[[col]][1]
+      if (col %in% names(schedule_checked)) {
+        init_data[[col]] <- schedule_checked[[col]][1]
       }
     }
 
@@ -498,10 +480,10 @@
       seg_data[[time_var]] <- dt_vec[i]
       seg_data[[temp_var]] <- tempk_vec[i]
 
-      # Add sanitized grouping columns to seg_data
+      # Add grouping columns to seg_data
       for (col in group_cols) {
-        if (col %in% names(schedule_sanitized)) {
-          seg_data[[col]] <- schedule_sanitized[[col]][i]
+        if (col %in% names(schedule_checked)) {
+          seg_data[[col]] <- schedule_checked[[col]][i]
         }
       }
 
@@ -579,11 +561,11 @@
     }),
     group_cols
   )
-  schedule_sanitized <- .sanitize_schedule_groups(schedule, group_cols,
-                                                  sanitize_map = NULL,
-                                                  rate_cols = rate_cols,
-                                                  known_levels = known_levels,
-                                                  unsupported = build$settings$unsupported_rate_cells)
+  schedule_sanitized <- .match_schedule_groups(schedule, group_cols,
+                                                known_levels,
+                                                sanitize_values = TRUE,
+                                                rate_cols = rate_cols,
+                                                unsupported = build$settings$unsupported_rate_cells)
 
   # Parse temperature expression once
   if (!is.null(temp_fml)) {
@@ -706,7 +688,6 @@
 .build_composite_newdata <- function(schedule, model_type, fit) {
 
   build <- attr(fit, "build")
-  sanitize_map <- attr(fit, "sanitize_map")
 
   # Extract grouping columns from settings
   intercept_cols <- build$settings$intercept_cols
@@ -723,15 +704,10 @@
     )
     names(newdata) <- c(time_var, temp_var)
 
-    # Add sanitized grouping columns
+    # Add grouping columns
     for (col in group_cols) {
       if (col %in% names(schedule)) {
-        # Apply sanitization
-        val <- as.character(schedule[[col]][1])
-        if (!is.null(sanitize_map[[col]])) {
-          val <- sanitize_map[[col]][val]
-        }
-        newdata[[col]] <- val
+        newdata[[col]] <- as.character(schedule[[col]][1])
       }
     }
   } else if (model_type == "fit_sb") {
@@ -744,7 +720,7 @@
     )
     names(newdata) <- c(time_var, temp_var)
 
-    # Add sanitized grouping columns (no sanitize_map for fit_sb)
+    # Add sanitized grouping columns (fit_sb keys groups on sanitized labels)
     for (col in group_cols) {
       if (col %in% names(schedule)) {
         val <- sanitize(as.character(schedule[[col]][1]))
@@ -763,15 +739,10 @@
     )
     names(newdata) <- c(time_var, temp_var)
 
-    # Add sanitized grouping columns
+    # Add grouping columns
     for (col in group_cols) {
       if (col %in% names(schedule)) {
-        # Apply sanitization
-        val <- as.character(schedule[[col]][1])
-        if (!is.null(sanitize_map[[col]])) {
-          val <- sanitize_map[[col]][val]
-        }
-        newdata[[col]] <- val
+        newdata[[col]] <- as.character(schedule[[col]][1])
       }
     }
   }
@@ -916,7 +887,7 @@ predict_tos <- function(fit,
   # Covariate types and humidity scale, on the scale the fit used.
   check_predictor_cols(schedule, fit_build$settings, what = "schedule")
 
-  # Every grouping column the fit uses must be supplied; .sanitize_schedule_groups()
+  # Every grouping column the fit uses must be supplied; .match_schedule_groups()
   fit_group_cols <- unique(c(fit_build$settings$intercept_cols,
                              fit_build$settings$rate_cols))
   fit_group_cols <- fit_group_cols[!is.na(fit_group_cols) & nzchar(fit_group_cols)]

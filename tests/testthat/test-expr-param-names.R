@@ -87,10 +87,9 @@ test_that("expr_rate disambiguates cells that collide via the '_' collapse", {
 
   # Each suffixed parameter must be guarded by its own indicator, so the two
   # cells that collided are still told apart at evaluation time. Matched with
-  # `[^+]*` standing in for the column reference: each column is wrapped in a
-  # sanitising gsub() so the comparison also holds on raw data (see
-  # sanitized_col()), and that wrapper is not what this test is about. `[^+]*`
-  # rather than `.*` keeps each match inside a single additive term.
+  # `[^+]*` standing in for the column reference, which is not what this test is
+  # about. `[^+]*` rather than `.*` keeps each match inside a single additive
+  # term.
   expect_match(re$expr,
                "== 'a_b'\\) \\* \\([^+]*== 'b'\\)\\) \\* k_f_f_a_a_b_b\\.1")
   expect_match(re$expr,
@@ -131,9 +130,9 @@ test_that("expr_rate honours prefix without mangling columns or levels", {
   expect_equal(rp$params, c("kB_k_lot_x", "kB_k_lot_y"))
   # The column reference in the indicator must survive verbatim -- the prefix
   # substitution must not rewrite `k_lot` into `kB_lot`. Asserted on the symbols
-  # of the parsed expression rather than on its text: the column is wrapped in a
-  # sanitising gsub() (see sanitized_col()), and a substring test cannot tell the
-  # column apart from the parameter `kB_k_lot_x`, which contains "k_lot" too.
+  # of the parsed expression rather than on its text: a substring test cannot
+  # tell the column apart from the parameter `kB_k_lot_x`, which contains
+  # "k_lot" too.
   syms <- all.vars(parse(text = rp$expr))
   expect_true("k_lot" %in% syms)
   expect_false("kB_lot" %in% syms)
@@ -173,11 +172,10 @@ test_that("build_parallel expression and params stay in sync", {
 
     # No parameter may be referenced by the expression unless it is declared.
     # Symbols are taken from the parsed expression, not by splitting the text on
-    # non-alphanumerics: the indicators wrap each column in a sanitising gsub()
-    # (see sanitized_col()), and a text split reads the function name and the
-    # contents of its regex literal as symbols -- "gsub", "alnum", "_". That is
-    # the same misclassification the tokeniser fixes removed from the package
-    # itself (V10-05); all.vars() distinguishes symbols from calls and literals.
+    # non-alphanumerics: a text split reads the contents of string literals (the
+    # level values) as symbols. That is the same misclassification the tokeniser
+    # fixes removed from the package itself (V10-05); all.vars() distinguishes
+    # symbols from calls and literals.
     for (rp in list(rp_B, rp_C)) {
       toks  <- unique(all.vars(parse(text = rp$expr)))
       stray <- setdiff(toks, c(rp$params, cs[[1]], cs[[2]]))

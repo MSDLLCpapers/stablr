@@ -101,14 +101,10 @@ build_singledeg <- function(
   ## containing "y0".
   ie_A <- expr_intercept(df, intercept_cols, prefix = "A0")
   ie_B <- expr_intercept(df, intercept_cols, prefix = "B0")
-
-  ie_A$expr <- quote_numeric_levels(ie_A$expr)
-  ie_B$expr <- quote_numeric_levels(ie_B$expr)
   
   
   ## ── 2. Rate‑constant & Arrhenius Equation ─────────────────────────────────
   rate_part <- expr_rate(df, rate_cols)                      # k(T, …)
-  rate_part$expr <- quote_numeric_levels(rate_part$expr)                   # k(T, …)
   arr_expr <- temp_fml
 
   ## ── 3. Vector-valued residual function ─────────────────────────────────
@@ -181,6 +177,7 @@ build_singledeg <- function(
          Yinf = Yinf,
          rate_cols = rate_cols,
          rate_cells = rate_cells(df, rate_cols),
+         group_levels = group_levels(df, c(intercept_cols, rate_cols)),
          unsupported_rate_cells = unsupported_rate_cells(df, rate_cols, time_var,
                                                          intercept_cols, temp_var),
          intercept_cols = intercept_cols,
@@ -333,21 +330,9 @@ fit_singledeg <- function(
                           temp_expr_params(temp_fml, temp_var, covar_cols))
   check_trend_direction(df, yA_var, time_var, trend, temp_var)
 
-  df_model <- sanitize_group_values(df, c(intercept_cols, rate_cols))
-
-  # ──3. Record the mapping from original -> sanitized values ──────
-  group_cols <- unique(c(intercept_cols, rate_cols))
-  sanitize_map <- list()
-  for (col in group_cols) {
-    # names = original, values = sanitized; relies on sanitize_group_values()
-    # preserving row order.
-    lookup <- stats::setNames(
-      as.character(df_model[[col]]),
-      as.character(df[[col]])
-    )
-    lookup <- lookup[!duplicated(names(lookup))]
-    sanitize_map[[col]] <- lookup
-  }
+  # Check that grouping levels give valid, distinct parameter names.
+  check_group_levels(df, c(intercept_cols, rate_cols))
+  df_model <- df
 
   # !is.finite, not anyNA(): Inf would otherwise slip into a degenerate fit.
   resp_vars <- c(yA_var, yB_var)
@@ -410,7 +395,6 @@ fit_singledeg <- function(
 
   class(mod) <- c("fit_singledeg", class(mod))
   attr(mod, "build") <- build
-  attr(mod, "sanitize_map") <- sanitize_map
   return(mod)
   
 }

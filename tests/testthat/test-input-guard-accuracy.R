@@ -47,25 +47,26 @@ test_that("a character `start` is refused instead of being discarded", {
   )
 })
 
-test_that("levels differing only by surrounding whitespace are one level", {
-  # Previously refused outright as a punctuation collision, so a batch column
-  # carrying 'Lot-1' and 'Lot-1 ' from a spreadsheet export could not be fitted
-  # at all. Internal punctuation must still collide -- see
-  # test-predict-sanitize-values.R.
+test_that("levels differing only by surrounding whitespace are distinct", {
+  # 'Lot-1 ' and 'Lot-1' are distinct levels with the same parameter name, so
+  # fitting errors and suggests trimws().
   d <- pur()
   b1 <- unique(d$batch)[1]
   rows <- which(d$batch == b1)
   d$batch[rows[seq(1, length(rows), by = 2)]] <- paste0(b1, " ")
 
-  fit <- expect_no_error(
+  expect_error(
     fit_kinetic(d, kinetic_order = 1, trend = "decreasing",
-                intercept_cols = "batch")
+                intercept_cols = "batch"),
+    "trimws()", fixed = TRUE
   )
-  # One parameter for the one real level, not two and not none.
-  expect_length(grep("^y0_batch_", names(coef(fit))), length(unique(d$batch)) - 1L)
 
-  # And predicting from either spelling works.
-  nd <- data.frame(time = 12, tempk = 298.15, batch = c(b1, paste0(b1, " ")))
+  # Once cleaned, it fits and predicts as one level.
+  d$batch <- trimws(d$batch)
+  fit <- fit_kinetic(d, kinetic_order = 1, trend = "decreasing",
+                     intercept_cols = "batch")
+  expect_length(grep("^y0_batch_", names(coef(fit))), length(unique(d$batch)))
+  nd <- data.frame(time = 12, tempk = 298.15, batch = b1)
   expect_no_error(predict(fit, nd))
 })
 

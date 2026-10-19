@@ -10,8 +10,8 @@
 #     whenever the fit_kinetic class is lost, was not. Every indicator was FALSE
 #     for every level and the sum came back as exactly 0 -- total degradation,
 #     the worst available wrong answer for a stability forecast, with no warning.
-#     Fixed in the expression itself (see sanitized_col()) rather than in the
-#     method, so it holds on whichever path evaluates it.
+#     The expression compares against the level as it appears in the data (see
+#     level_literal()), so it holds on any evaluation path.
 #   * H05-04 -- a newdata column sharing a name with a fitted parameter outranks
 #     the estimate during evaluation, silently replacing the fit.
 #   * W04-05 -- extrapolating outside the fitted temperature range is exponential
@@ -109,16 +109,33 @@ test_that("built expressions evaluate on raw data, not only sanitized data", {
   expect_equal(ev(ie), c(7, 7))
   expect_equal(ev(re), c(7, 7))
 
-  # ... and equally on data that is already sanitized, since sanitize() is
-  # idempotent and both sides of the comparison go through it.
-  d2 <- data.frame(batch = c("A1", "B"), stringsAsFactors = FALSE)
-  ev2 <- function(x) {
+})
+
+test_that("grouping levels are matched exactly", {
+  # "A1" is not a fitted level ("A-1" is).
+  fit <- fit_kinetic(sim_kin(), kinetic_order = 1, trend = "decreasing",
+                     rate_cols = "batch", intercept_cols = "batch")
+  expect_error(predict(fit, newdata = data.frame(batch = "A1", time = 12,
+                                                 tempk = 298.15)),
+               "unseen levels in column 'batch': 'A1'", fixed = TRUE)
+
+  # The model, as printed, compares against the level in the data.
+  expect_false(any(grepl("gsub", deparse(formula(fit)))))
+  expect_true(any(grepl("batch == \"A-1\"", deparse(formula(fit)), fixed = TRUE)))
+})
+
+test_that("levels with quotes, backslashes and operators round-trip", {
+  # The level is written into the expression as a string literal, so anything a
+  # label can contain must be escaped, never spliced in raw.
+  d <- data.frame(batch = c("it's", "a\\b", "x==1", "\"q\"", "Lot 2"),
+                  stringsAsFactors = FALSE)
+  for (x in list(expr_intercept(d, "batch"), expr_rate(d, "batch"))) {
     p <- stats::setNames(rep(7, length(x$params)), x$params)
-    rlang::eval_tidy(rlang::parse_expr(x$expr), data = d2,
-                     env = list2env(as.list(p), parent = baseenv()))
+    expect_equal(
+      rlang::eval_tidy(rlang::parse_expr(x$expr), data = d,
+                       env = list2env(as.list(p), parent = baseenv())),
+      rep(7, nrow(d)))
   }
-  expect_equal(ev2(ie), c(7, 7))
-  expect_equal(ev2(re), c(7, 7))
 })
 
 test_that("a numeric grouping column with decimals still matches its rows", {
@@ -127,7 +144,7 @@ test_that("a numeric grouping column with decimals still matches its rows", {
   # leaving the all-digit "04", which format_level() emitted bare as the number
   # 4 -- and "04" == 4 is FALSE, so every indicator was FALSE and the expression
   # evaluated to 0. Same failure mode as W11-01, entering through the comparison
-  # target rather than the column. See sanitized_level().
+  # target rather than the column. See level_literal().
   d <- data.frame(rh = c(0.4, 0.75))
   for (x in list(expr_intercept(d, "rh"), expr_rate(d, "rh"))) {
     p <- stats::setNames(rep(7, length(x$params)), x$params)
@@ -138,7 +155,7 @@ test_that("a numeric grouping column with decimals still matches its rows", {
   }
 
   # Leading zeros must survive too -- an unquoted 0000803274 would read as
-  # 803274. This is what quote_numeric_levels() used to repair after the fact.
+  # 803274.
   z <- data.frame(batch = c("0000803274", "0000803279"),
                   stringsAsFactors = FALSE)
   zr <- expr_rate(z, "batch")

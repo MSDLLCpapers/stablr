@@ -30,52 +30,48 @@ format_level <- function(lvl) {
   if (is.character(lvl) && grepl("^[+-]?[0-9]*\\.?[0-9]+$", lvl)) return(lvl)
   shQuote(as.character(lvl))
 }
-# Sanitize the column inside the expression so indicators still match the
-# sanitized level when the fit_kinetic class is lost and stats::predict.nls()
-# runs on raw newdata. gsub() is inlined so the expression stays evaluable
-# anywhere (sanitize() is unexported) and is idempotent. Both sides are sanitized
-# because the exported expr_intercept()/expr_rate() may bake a raw level into the
-# expression.
-sanitized_col <- function(var) {
-  sprintf('gsub("[^[:alnum:]_]", "", %s)', var)
-}
-
-# The comparison target for a sanitized column, always quoted (so format_level()
-# is not used): sanitized_col() returns character, so a bare all-digit target
-# such as 04 would never match. Quoting is safe because sanitize() leaves only
-# [[:alnum:]_], and it preserves leading zeros.
-sanitized_level <- function(lvl) {
-  shQuote(sanitize(as.character(lvl)))
+# Quoted, escaped string literal for a grouping level as it appears in the data.
+# Numeric and factor columns compare via as.character(), so decimals and leading
+# zeros match.
+level_literal <- function(lvl) {
+  encodeString(as.character(lvl), quote = "'")
 }
 
 indicator_term <- function(var, lvl, par) {
-  glue::glue("(({sanitized_col(var)} == {sanitized_level(lvl)}) * {par})")
+  glue::glue("(({var} == {level_literal(lvl)}) * {par})")
 }
 
-# Quote numeric comparison targets so leading zeros (== 01) survive as "01".
-# Now a backstop: sanitized_level() already quotes every target as it is built,
-# so this is a no-op on already-quoted right-hand sides.
-quote_numeric_levels <- function(expr) {
-  gsub("(==\\s*)(\\d+)", '\\1"\\2"', expr)
-}
-
-sanitize_group_values <- function(df, cols) {
-  if (length(cols) == 0) return(df)
+# Check that grouping levels give valid, distinct parameter names. Levels are not
+# trimmed, so 'Lot-1 ' and 'Lot-1' collide.
+check_group_levels <- function(df, cols) {
+  if (length(cols) == 0) return(invisible(NULL))
   cols <- unique(cols)
   check_syntactic_cols(cols)
   for (col in cols) {
-    # trimws() before the collision check: levels differing only by surrounding
-    # whitespace ('Lot-1 ' vs 'Lot-1') are the same level and must not be read as
-    # a collision. Internal punctuation differences still collide and error.
-    orig <- trimws(as.character(df[[col]]))
-    df[[col]] <- sanitize(orig)
-    check_sanitize_collisions(col, orig, df[[col]])
+    orig <- as.character(df[[col]])
+    check_sanitize_collisions(col, orig, sanitize(orig))
   }
+  invisible(NULL)
+}
+
+# Fitted levels per grouping column, as they appear in the data. predict() and
+# predict_tos() check new data against these.
+group_levels <- function(df, cols) {
+  cols <- unique(cols[nzchar(cols)])
+  stats::setNames(lapply(cols, function(v) unique(as.character(df[[v]]))), cols)
+}
+
+# Used by fit_sb(), which keys its groups on sanitized labels.
+sanitize_group_values <- function(df, cols) {
+  if (length(cols) == 0) return(df)
+  cols <- unique(cols)
+  check_group_levels(df, cols)
+  for (col in cols) df[[col]] <- sanitize(as.character(df[[col]]))
   df
 }
 
 # Grouping column names are spliced into the expression as bare symbols (see
-# sanitized_col()), and also form parameter names, so a non-syntactic name ("test
+# indicator_term()), and also form parameter names, so a non-syntactic name ("test
 # site", "y (%)", "2023 lot") breaks both the parser and gsl_nls. Backticking does
 # not help; reject it here with a remedy.
 check_syntactic_cols <- function(cols) {
@@ -108,9 +104,14 @@ check_sanitize_collisions <- function(col, orig, clean) {
             lbl)
   }, character(1))
 
+  # Suggest trimws() when levels differ only by surrounding whitespace.
+  hint <- if (anyDuplicated(trimws(pairs$orig))) {
+    "Levels differing only by surrounding whitespace are distinct; remove it with trimws() before fitting."
+  } else ""
+
   stop(
-    sprintf("Grouping column '%s' has distinct levels that collide after removing punctuation: %s. ",
-            col, paste(groups, collapse = "; ")),
+    sprintf("Grouping column '%s' has distinct levels that collide after removing punctuation: %s. %s",
+            col, paste(groups, collapse = "; "), hint),
     call. = FALSE
   )
 }
@@ -253,23 +254,15 @@ check_param_union <- function(blocks) {
   )
 }
 
-# Observed combinations of `cols`, one row per cell.
-#
-# Reproduces the cell set and ordering of levels(interaction(df[cols], drop =
-# TRUE)) (observed cells only, first column varying fastest, each column by its
-# factor levels or sorted unique values), without encoding the cell as a
-# "."-joined string, which is lossy when a level contains a ".".
+# Observed combinations of `cols` as character labels, one row per cell, ordered
+# by parameter-name label.
 observed_cells <- function(df, cols) {
-  cells <- unique(df[, cols, drop = FALSE])
+  labels <- lapply(df[cols], as.character)
+  cells  <- unique(data.frame(labels, stringsAsFactors = FALSE, check.names = FALSE))
 
-  # Order each column as interaction() would, then sort with the first column
-  # varying fastest (order() treats its first argument as most significant, so
-  # reverse the keys). Non-factors go through factor(), which sorts in the
-  # column's own type, so numeric 2 precedes 10.
-  keys <- lapply(cols, function(v) {
-    x <- cells[[v]]
-    if (is.factor(x)) x else factor(x)
-  })
+  # First column varies fastest (order() treats its first argument as most
+  # significant, so the keys are reversed).
+  keys  <- lapply(cols, function(v) sanitize(cells[[v]]))
   cells <- cells[do.call(order, rev(keys)), , drop = FALSE]
   rownames(cells) <- NULL
   cells
@@ -285,12 +278,13 @@ rate_cells <- function(df, rate_cols) {
   observed_cells(df, rate_cols)
 }
 
-# Row keys for comparing observed cells against prediction cells. Grouping values
-# arrive sanitized ([[:alnum:]_] only), so "\r" cannot occur in a value and is a
+# Row keys for comparing observed cells against prediction cells. encodeString()
+# escapes control characters, so "\r" cannot occur in an encoded value and is a
 # safe separator (unlike the lossy interaction()-label round-trip; see
 # observed_cells()).
 cell_keys <- function(df, cols) {
-  do.call(paste, c(lapply(cols, function(v) as.character(df[[v]])), sep = "\r"))
+  do.call(paste, c(lapply(cols, function(v) encodeString(as.character(df[[v]]))),
+                   sep = "\r"))
 }
 
 # Render cell keys as human-readable labels, e.g. "(batch='A', pkg='x')"
@@ -305,7 +299,7 @@ cell_labels <- function(keys, cols) {
 #
 # expr_rate() encodes rates as a sum of per-observed-cell indicators, so an
 # unfitted combination matches none, giving exp(-0 * t) == 1: a flat prediction
-# with zero-width intervals. apply_sanitize_map()'s per-column check cannot catch
+# with zero-width intervals. check_newdata_levels()'s per-column check cannot catch
 # this, because each marginal level is known while the pair is unfitted; it is a
 # no-op for a single rate column.
 check_observed_cells <- function(newdata, cells, rate_cols, what = "newdata",
@@ -1668,30 +1662,33 @@ tolerance_bounds_km <- function(mu_hat, d_squared, sigma, df, coverage, level,
   data.frame(fit = mu_hat, lwr = lwr, upr = upr)
 }
 
-#' Apply sanitize map to newdata
+#' Check newdata grouping levels against the fitted levels
 #'
-#' Validates and transforms grouping columns in newdata using the sanitize map
-#' stored during fitting, so prediction data uses the same sanitized values as
-#' the training data.
+#' Grouping values must match the fitted labels exactly.
 #'
 #' @param newdata Data frame of new observations.
-#' @param sanitize_map Named list mapping original values to sanitized values,
-#'   as stored in \code{attr(mod, "sanitize_map")}.
 #' @param settings The build settings list containing \code{intercept_cols},
-#'   \code{rate_cols} and \code{rate_cells} (the observed rate combinations).
+#'   \code{rate_cols}, \code{group_levels} (the fitted levels per column) and
+#'   \code{rate_cells} (the observed rate combinations).
 #'
-#' @return The \code{newdata} data frame with grouping columns transformed.
+#' @return Invisibly \code{NULL}; errors on a level or rate cell the model was not
+#'   fitted on.
 #' @keywords internal
 #' @noRd
-apply_sanitize_map <- function(newdata, sanitize_map, settings) {
+check_newdata_levels <- function(newdata, settings) {
 
-  # An empty map means there are no grouping columns to rewrite, not that there is
-  # nothing to check: a model with no rate_cols still has a single global rate,
-  # which can be just as unidentified as a per-cell one. Apply the map when there
-  # is one, then check regardless.
-  if (!is.null(sanitize_map) && length(sanitize_map) > 0L) {
+  # Rate checks run even without grouping columns: a single global rate can also
+  # be unidentified.
+  group_cols <- unique(c(settings$intercept_cols, settings$rate_cols))
+  group_cols <- group_cols[nzchar(group_cols)]
 
-    group_cols <- unique(c(settings$intercept_cols, settings$rate_cols))
+  if (length(group_cols)) {
+
+    # Older fits do not record group_levels.
+    if (is.null(settings$group_levels)) {
+      stop("This model was fitted with an earlier version of stablr. ",
+           "Refit it to predict on new data.", call. = FALSE)
+    }
 
     # Check that grouping columns exist in newdata
     missing_group <- setdiff(group_cols, names(newdata))
@@ -1705,28 +1702,17 @@ apply_sanitize_map <- function(newdata, sanitize_map, settings) {
     check_structural_nas(newdata, group_cols, what = "newdata")
 
     for (col in group_cols) {
-      if (col %in% names(sanitize_map)) {
-        # Whitespace-insensitive on both sides, matching sanitize_group_values():
-        # 'Lot-1 ' in newdata must not be reported as a level the model never saw.
-        lookup <- sanitize_map[[col]]
-        names(lookup) <- trimws(names(lookup))
-        lookup <- lookup[!duplicated(names(lookup))]
-        original_vals <- trimws(as.character(newdata[[col]]))
-
-        # Check for unseen levels
-        unseen <- setdiff(unique(original_vals), names(lookup))
-        if (length(unseen)) {
-          stop(
-            sprintf(
-              "newdata contains unseen levels in column '%s': %s. ",
-              col, paste(unseen, collapse = ", ")
-            ),
-            "Prediction is only possible for levels present in the training data.",
-            call. = FALSE
-          )
-        }
-
-        newdata[[col]] <- unname(lookup[original_vals])
+      unseen <- setdiff(unique(as.character(newdata[[col]])),
+                        settings$group_levels[[col]])
+      if (length(unseen)) {
+        stop(
+          sprintf(
+            "newdata contains unseen levels in column '%s': %s. ",
+            col, paste(sQuote(unseen, FALSE), collapse = ", ")
+          ),
+          "Prediction is only possible for levels present in the training data.",
+          call. = FALSE
+        )
       }
     }
   }
@@ -1735,8 +1721,7 @@ apply_sanitize_map <- function(newdata, sanitize_map, settings) {
   time_var  <- if (is.null(settings$time_var)) "time" else settings$time_var
 
   # The per-column loop validates each level in isolation. Rate parameters are
-  # keyed on whole combinations, so check the tuple too, on the sanitized
-  # values, matching how the cells were recorded at fit time.
+  # keyed on whole combinations, so check the tuple too.
   check_observed_cells(newdata, settings$rate_cells, rate_cols,
                        time_var = time_var)
 
@@ -1745,6 +1730,6 @@ apply_sanitize_map <- function(newdata, sanitize_map, settings) {
   check_rate_support_newdata(newdata, settings$unsupported_rate_cells,
                             rate_cols, time_var)
 
-  newdata
+  invisible(NULL)
 }
 

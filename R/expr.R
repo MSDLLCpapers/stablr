@@ -72,7 +72,8 @@ expr_intercept <- function(df, intercept_cols = NULL, prefix = "y0") {
 
   for (i in seq_along(intercept_cols)) {
     v    <- intercept_cols[i]
-    lvls <- sort(unique(df[[v]]))
+    # Levels in parameter-name order (see observed_cells()).
+    lvls <- observed_cells(df, v)[[v]]
 
     # Reference coding: drop first level of 2nd+ factors to avoid rank deficiency
     if (multi_factor && i >= 2) {
@@ -156,13 +157,13 @@ expr_rate <- function(df, rate_cols = NULL, prefix = "k") {
     # value of each grouping variable in this combination, taken from the data
     parts <- vapply(rate_cols, function(v) as.character(cells[[v]][j]),
                     character(1), USE.NAMES = FALSE)
-    # Sanitized at evaluation time so the expression matches raw input too.
+    # Compared against the level as it appears in the data.
     cond  <- purrr::map2_chr(
       rate_cols, parts,
-      ~ glue::glue("({sanitized_col(.x)} == {sanitized_level(.y)})"))
+      ~ glue::glue("({.x} == {level_literal(.y)})"))
     cond  <- glue::glue_collapse(cond, sep = " * ")
 
-    combo_label <- sanitize(gsub("\\.", "_", paste(parts, collapse = ".")))
+    combo_label <- paste(sanitize(parts), collapse = "_")
     par_name <- glue::glue("{prefix}_{paste(rate_cols, collapse = '_')}_{combo_label}")
 
     # The term embeds the parameter name, so settle the names first.

@@ -164,7 +164,7 @@ test_that("an unidentified GLOBAL rate is refused at predict time", {
   d <- data.frame(time = 0, tempk = c(298.15, 298.15, 313.15, 313.15),
                   y = c(100, 99.8, 100, 99.5))
   fit <- suppressWarnings(fit_kinetic(d, kinetic_order = 1, trend = "decreasing"))
-  expect_equal(length(attr(fit, "sanitize_map")), 0L)
+  expect_equal(length(attr(fit, "build")$settings$group_levels), 0L)
   expect_match(attr(fit, "build")$settings$unsupported_rate_cells$label,
                "global rate")
 

@@ -127,18 +127,12 @@ build_parallel <- function(
   ie_A <- expr_intercept(df, intercept_cols, prefix = "A0")
   ie_B <- expr_intercept(df, intercept_cols, prefix = "B0")
   ie_C <- expr_intercept(df, intercept_cols, prefix = "C0")
-
-  ie_A$expr <- quote_numeric_levels(ie_A$expr)
-  ie_B$expr <- quote_numeric_levels(ie_B$expr)
-  ie_C$expr <- quote_numeric_levels(ie_C$expr)
   
   ## ── 2. Rate‑constant ─────────────────────────────────
   ## Prefix up front as with the intercepts: a gsub over the built expression
   ## cannot tell a "k_" parameter stem from a column name or level value.
   rp_B <- expr_rate(df, rate_cols, prefix = "kB")
   rp_C <- expr_rate(df, rate_cols, prefix = "kC")
-  rp_B$expr <- quote_numeric_levels(rp_B$expr)
-  rp_C$expr <- quote_numeric_levels(rp_C$expr)
   
   ## ── 3. Temperature Dependence Expressions ─────────────────────────────────
   arr_base <- temp_fml
@@ -226,6 +220,7 @@ build_parallel <- function(
       Yinf = Yinf,
       rate_cols = rate_cols,
       rate_cells = rate_cells(df, rate_cols),
+      group_levels = group_levels(df, c(intercept_cols, rate_cols)),
       unsupported_rate_cells = unsupported_rate_cells(df, rate_cols, time_var,
                                                       intercept_cols, temp_var),
       intercept_cols = intercept_cols,
@@ -383,21 +378,9 @@ fit_parallel <- function(
     advice = "Check that `yA` is the source species, not a degradant."
   )
 
-  df_model <- sanitize_group_values(df, c(intercept_cols, rate_cols))
-
-  # ──3. Record the mapping from original -> sanitized values ──────
-  group_cols <- unique(c(intercept_cols, rate_cols))
-  sanitize_map <- list()
-  for (col in group_cols) {
-    # names = original, values = sanitized; relies on sanitize_group_values()
-    # preserving row order.
-    lookup <- stats::setNames(
-      as.character(df_model[[col]]),
-      as.character(df[[col]])
-    )
-    lookup <- lookup[!duplicated(names(lookup))]
-    sanitize_map[[col]] <- lookup
-  }
+  # Check that grouping levels give valid, distinct parameter names.
+  check_group_levels(df, c(intercept_cols, rate_cols))
+  df_model <- df
 
   # !is.finite, not anyNA(): Inf would otherwise slip into a degenerate fit.
   resp_vars <- c(yA_var, yB_var, yC_var)
@@ -465,7 +448,6 @@ fit_parallel <- function(
 
   class(mod) <- c("fit_parallel", class(mod))
   attr(mod, "build") <- build
-  attr(mod, "sanitize_map") <- sanitize_map
   
   return(mod)
 }

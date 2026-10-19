@@ -149,7 +149,7 @@ test_that("rate_cols are also evaluated from the fitted expression", {
 # ── expr_intercept(): a single-level later factor is legitimate input ─────────
 
 test_that("expr_intercept tolerates a later factor observed at one level", {
-  one_term <- "((gsub(\"[^[:alnum:]_]\", \"\", batch) == 'A') * y0_batch_A)"
+  one_term <- "((batch == 'A') * y0_batch_A)"
 
   one_row <- data.frame(batch = "A", orient = "upr", stringsAsFactors = FALSE)
   ip <- expr_intercept(one_row, c("batch", "orient"))

@@ -133,12 +133,8 @@ predict.fit_parallel <- function(object, newdata = NULL,
     # Warns rather than errors: extrapolation is legitimate, just not silent.
     check_temp_extrapolation(newdata, settings)
 
-    # ── Apply the same sanitization to newdata ──────────────────
-    newdata <- apply_sanitize_map(
-      newdata,
-      sanitize_map = attr(object, "sanitize_map"),
-      settings     = settings
-    )
+    # Grouping levels must match the fitted levels exactly.
+    check_newdata_levels(newdata, settings)
   }
   
   predict_gsl_nls <- getFromNamespace("predict.gsl_nls", "gslnls")
@@ -308,12 +304,8 @@ predict.fit_singledeg <- function(object, newdata = NULL,
     # Warns rather than errors: extrapolation is legitimate, just not silent.
     check_temp_extrapolation(newdata, settings)
 
-    # ── Apply the same sanitization to newdata ──────────────────
-    newdata <- apply_sanitize_map(
-      newdata,
-      sanitize_map = attr(object, "sanitize_map"),
-      settings     = settings
-    )
+    # Grouping levels must match the fitted levels exactly.
+    check_newdata_levels(newdata, settings)
   }
   
   predict_gsl_nls <- getFromNamespace("predict.gsl_nls", "gslnls")
@@ -461,7 +453,7 @@ predict.fit_kinetic <- function(
   interval <- match.arg(interval)
   side <- match.arg(side)
   
-  # Validate and sanitize newdata
+  # Validate newdata
   if (!is.null(newdata)) {
     build <- attr(object, "build")
     if (is.null(build)) {
@@ -493,12 +485,8 @@ predict.fit_kinetic <- function(
     # Warns rather than errors: extrapolation is legitimate, just not silent.
     check_temp_extrapolation(newdata, settings)
 
-    # ── Apply the same sanitization to newdata ──────────────────
-    newdata <- apply_sanitize_map(
-      newdata,
-      sanitize_map = attr(object, "sanitize_map"),
-      settings     = settings
-    )
+    # Grouping levels must match the fitted levels exactly.
+    check_newdata_levels(newdata, settings)
   }
   
   # ── Delegate to gslnls for standard intervals ──────────────────────

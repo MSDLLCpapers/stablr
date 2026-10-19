@@ -91,7 +91,7 @@ test_that("a full factorial design is never rejected", {
 })
 
 test_that("a single rate column is unaffected: the marginal check still owns it", {
-  # With one column, cells and levels coincide, so apply_sanitize_map()'s
+  # With one column, cells and levels coincide, so check_newdata_levels()'s
   # per-column check already covered this and must remain the one that reports.
   df  <- mk_cells(data.frame(f = c("A", "B"), g = c("x", "x"),
                              stringsAsFactors = FALSE))
@@ -183,9 +183,8 @@ test_that("predict_tos rejects an unobserved combination in the schedule", {
   testthat::expect_no_error(predict_tos(fit, sched("B", "y")))
 })
 
-test_that("levels needing sanitization are matched post-sanitize, not raw", {
-  # "A-1" fits as "A1"; the recorded cells hold sanitized values, so the check
-  # must compare against the sanitized newdata or it would reject a valid cell.
+test_that("levels with punctuation are matched as they appear in the data", {
+  # Cells are recorded and checked using the levels as they appear in the data.
   df <- mk_cells(data.frame(f = c("A-1", "B-2"), g = c("x.1", "y.2"),
                             stringsAsFactors = FALSE))
   fit <- fit_kinetic(df, kinetic_order = 1, trend = "decreasing",
