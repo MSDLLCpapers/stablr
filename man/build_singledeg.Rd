@@ -56,8 +56,8 @@ companion response B (mass balance).}
 \item{rh_ref}{Reference relative humidity value (only needed when expr_arrhenius_humidity is used).}
 
 \item{covar_cols}{Character vector of every data column the temperature
-expression is declared to reference besides �\code{temp_var} (�\code{rh_col}
-included). Assembled by �\code{resolve_temp_expr()}; symbols not named here are
+expression is declared to reference besides \code{temp_var} (\code{rh_col}
+included). Assembled by \code{resolve_temp_expr()}; symbols not named here are
 treated as free parameters.}
 
 \item{temp_fml}{Character string from \code{expr_arrhenius()$formula} or \code{expr_arrhenius_humidity()$formula}.}
@@ -83,8 +83,7 @@ data("nrcesds")
 # -------------------------------------------------
 # Example 1: Standard usage
 # -------------------------------------------------
-library(tidyverse)
-nrcesds_wide <- nrcesds \%>\% tidyr::pivot_wider(names_from = "cqa", values_from = "y")
+nrcesds_wide <- tidyr::pivot_wider(nrcesds, names_from = "cqa", values_from = "y")
 build <- build_singledeg(
           df = nrcesds_wide,
           kinetic_order = 2,
@@ -99,7 +98,6 @@ str(build$param_names)
 # -------------------------------------------------
 # This example uses the |> pipe and requires R version 4.1.0 or higher.
 if (getRversion() >= "4.1.0") {
-  library(tidyverse)
   build <- nrcesds |>
     tidyr::pivot_wider(names_from = "cqa", values_from = "y") |>
     dplyr::rename(

@@ -15,7 +15,6 @@ Depends:
     R (>= 3.5)
 LazyData: true
 Imports:
-    assertthat,
     deSolve,
     dplyr,
     MASS,
@@ -26,15 +25,14 @@ Imports:
     purrr,
     numDeriv,
     rlang,
-    stats
+    stats,
+    tidyr
 Suggests:
     ggplot2,
-    tidyverse,
     knitr,
     rmarkdown,
     stringr,
-    testthat (>= 3.0.0),
-    tidyr
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0

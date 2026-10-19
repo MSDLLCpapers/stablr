@@ -24,7 +24,8 @@ knitr::opts_chunk$set(
 ## Setup
 ```{r setup, warning=FALSE,message=FALSE}
 library(stablr)
-library(tidyverse)
+library(dplyr)
+library(ggplot2)
 ```
 
 ## Introduction - Humidity-Modified Arrhenius Equation

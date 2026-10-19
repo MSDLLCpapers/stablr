@@ -17,8 +17,8 @@
 #' @param rh_col Column name for relative humidity values (only needed when expr_arrhenius_humidity is used).
 #' @param rh_ref Reference relative humidity value (only needed when expr_arrhenius_humidity is used).
 #' @param covar_cols Character vector of every data column the temperature
-#'   expression is declared to reference besides \code{temp_var} (\code{rh_col}
-#'   included). Assembled by \code{resolve_temp_expr()}; symbols not named here are
+#'   expression is declared to reference besides \code{temp_var} (\code{rh_col}
+#'   included). Assembled by \code{resolve_temp_expr()}; symbols not named here are
 #'   treated as free parameters.
 #'
 #' @return A list with

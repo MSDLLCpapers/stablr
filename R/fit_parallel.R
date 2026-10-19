@@ -28,8 +28,8 @@
 #' @param rh_col Column name for relative humidity values (only needed when expr_arrhenius_humidity is used).
 #' @param rh_ref Reference relative humidity value (only needed when expr_arrhenius_humidity is used).
 #' @param covar_cols Character vector of every data column the temperature
-#'   expression is declared to reference besides \code{temp_var} (\code{rh_col}
-#'   included). Assembled by \code{resolve_temp_expr()}; symbols not named here are
+#'   expression is declared to reference besides \code{temp_var} (\code{rh_col}
+#'   included). Assembled by \code{resolve_temp_expr()}; symbols not named here are
 #'   treated as free parameters.
 #' @param temp_expr Optional temperature-expression list, recorded in
 #'   \code{settings} for the predict methods. The expression actually evaluated
@@ -53,8 +53,7 @@
 #' # -------------------------------------------------
 #' # Example 1: Standard usage
 #' # -------------------------------------------------
-#' library(tidyverse)
-#' upsec_wide <- upsec %>% tidyr::pivot_wider(names_from = "cqa", values_from = "y")
+#' upsec_wide <- tidyr::pivot_wider(upsec, names_from = "cqa", values_from = "y")
 #' build <- build_parallel(
 #'           df = upsec_wide,
 #'           kinetic_order = 1,
@@ -69,7 +68,6 @@
 #' # -------------------------------------------------
 #' # This example uses the |> pipe and requires R version 4.1.0 or higher.
 #' if (getRversion() >= "4.1.0") {
-#'   library(tidyverse)
 #'   build <- upsec |>
 #'     tidyr::pivot_wider(names_from = "cqa", values_from = "y") |>
 #'     dplyr::rename(
@@ -281,8 +279,7 @@ build_parallel <- function(
 #' # -------------------------------------------------
 #' # Example 1: Standard usage
 #' # -------------------------------------------------
-#' library(tidyverse)
-#' upsec_wide <- upsec %>% tidyr::pivot_wider(names_from = "cqa", values_from = "y")
+#' upsec_wide <- tidyr::pivot_wider(upsec, names_from = "cqa", values_from = "y")
 #' fit <- fit_parallel(
 #'           df = upsec_wide,
 #'           kinetic_order = 1,
@@ -295,7 +292,6 @@ build_parallel <- function(
 #' # -------------------------------------------------
 #' # This example uses the |> pipe and requires R version 4.1.0 or higher.
 #' if (getRversion() >= "4.1.0") {
-#'   library(tidyverse)
 #'   fit <- upsec |>
 #'     tidyr::pivot_wider(names_from = "cqa", values_from = "y") |>
 #'     dplyr::rename(

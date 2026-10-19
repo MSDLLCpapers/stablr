@@ -470,18 +470,16 @@ build_alpha_ode <- function(
 #' fit <- fit_sb(dat, trend = "decreasing")
 #' summary(fit)
 #'
-#' # Grouped by batch without manual label cleanup
+#' \donttest{
 #' fit_batch <- fit_sb(
 #'   dat,
 #'   rate_cols = "batch",
 #'   intercept_cols = "batch",
-#'   outcome_var = "y",
-#'   time_var = "time",
-#'   temp_var = "tempk",
 #'   trend = "decreasing"
 #' )
 #' summary(fit_batch)
-#' 
+#' }
+#'
 #' @export
 fit_sb <- function(
     df,

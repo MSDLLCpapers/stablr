@@ -24,9 +24,9 @@ test_that("fit_kinetic works for orders and trends.", {
     start = NULL
   ){
     # check data contains required variables
-    assertthat::assert_that(all(c("tempk", "y", "time") %in% colnames(df)))
+    stopifnot(all(c("tempk", "y", "time") %in% colnames(df)))
     #  check that tempk > 0
-    assertthat::assert_that(all(df$tempk > 0))
+    stopifnot(all(df$tempk > 0))
     # starting parameters
     if (is.null(start)) start <- c(kref = NA, Ea = NA, A0 = NA)
     ### Fit model using NLS regression ###
@@ -84,10 +84,10 @@ test_that("fit_kinetic works for orders and trends.", {
     start = NULL
   ) {
     # check data contains required variables
-    assertthat::assert_that(all(c("tempk", "y", "time") %in% colnames(df)))
+    stopifnot(all(c("tempk", "y", "time") %in% colnames(df)))
 
     #  check that tempk > 0
-    assertthat::assert_that(all(df$tempk > 0))
+    stopifnot(all(df$tempk > 0))
 
     # starting parameters
     if (is.null(start)) start <- c(kref = NA, Ea = NA, A0 = NA)
@@ -158,9 +158,9 @@ test_that("fit_kinetic works for orders and trends.", {
     start = NULL
   ) {
     # check data contains required variables
-    assertthat::assert_that(all(c("tempk", "y", "time") %in% colnames(df)))
+    stopifnot(all(c("tempk", "y", "time") %in% colnames(df)))
     #  check that tempk > 0
-    assertthat::assert_that(all(df$tempk > 0))
+    stopifnot(all(df$tempk > 0))
     # starting parameters
     if (is.null(start)) start <- c(kref = NA, Ea = NA, A0 = NA)
     ### Fit model using NLS regression ###
@@ -221,10 +221,10 @@ test_that("fit_kinetic works for orders and trends.", {
     start = NULL
   ) {
     # check data contains required variables
-    assertthat::assert_that(all(c("tempk", "y", "time") %in% colnames(df)))
+    stopifnot(all(c("tempk", "y", "time") %in% colnames(df)))
 
     #  check that tempk > 0
-    assertthat::assert_that(all(df$tempk > 0))
+    stopifnot(all(df$tempk > 0))
 
     # starting parameters
     if (is.null(start)) start <- c(kref = NA, Ea = NA, A0 = NA)

@@ -25,7 +25,9 @@ knitr::opts_chunk$set(
 
 ```{r setup, message=FALSE, warning=FALSE}
 library(stablr)
-library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
 theme_set(theme_bw())
 
 # Shared palette for storage temperatures, used throughout.

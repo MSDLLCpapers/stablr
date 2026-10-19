@@ -85,8 +85,7 @@ data("nrcesds")
 # -------------------------------------------------
 # Example 1: Standard usage
 # -------------------------------------------------
-library(tidyverse)
-nrcesds_wide <- nrcesds \%>\% tidyr::pivot_wider(names_from = "cqa", values_from = "y")
+nrcesds_wide <- tidyr::pivot_wider(nrcesds, names_from = "cqa", values_from = "y")
 fit <- fit_singledeg(
           df = nrcesds_wide,
           kinetic_order = 2,
@@ -98,7 +97,6 @@ fit <- fit_singledeg(
 # -------------------------------------------------
 # This example uses the |> pipe and requires R version 4.1.0 or higher.
 if (getRversion() >= "4.1.0") {
-  library(tidyverse)
   fit <- nrcesds |>
     tidyr::pivot_wider(names_from = "cqa", values_from = "y") |>
     dplyr::rename(

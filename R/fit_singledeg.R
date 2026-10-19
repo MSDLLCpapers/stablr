@@ -24,8 +24,8 @@
 #' @param rh_col Column name for relative humidity values (only needed when expr_arrhenius_humidity is used).
 #' @param rh_ref Reference relative humidity value (only needed when expr_arrhenius_humidity is used).
 #' @param covar_cols Character vector of every data column the temperature
-#'   expression is declared to reference besides \code{temp_var} (\code{rh_col}
-#'   included). Assembled by \code{resolve_temp_expr()}; symbols not named here are
+#'   expression is declared to reference besides \code{temp_var} (\code{rh_col}
+#'   included). Assembled by \code{resolve_temp_expr()}; symbols not named here are
 #'   treated as free parameters.
 #' @return A list with
 #' * \code{fn} – function \code{f(params, data)} returning the stacked
@@ -40,8 +40,7 @@
 #' # -------------------------------------------------
 #' # Example 1: Standard usage
 #' # -------------------------------------------------
-#' library(tidyverse)
-#' nrcesds_wide <- nrcesds %>% tidyr::pivot_wider(names_from = "cqa", values_from = "y")
+#' nrcesds_wide <- tidyr::pivot_wider(nrcesds, names_from = "cqa", values_from = "y")
 #' build <- build_singledeg(
 #'           df = nrcesds_wide,
 #'           kinetic_order = 2,
@@ -56,7 +55,6 @@
 #' # -------------------------------------------------
 #' # This example uses the |> pipe and requires R version 4.1.0 or higher.
 #' if (getRversion() >= "4.1.0") {
-#'   library(tidyverse)
 #'   build <- nrcesds |>
 #'     tidyr::pivot_wider(names_from = "cqa", values_from = "y") |>
 #'     dplyr::rename(
@@ -235,8 +233,7 @@ build_singledeg <- function(
 #' # -------------------------------------------------
 #' # Example 1: Standard usage
 #' # -------------------------------------------------
-#' library(tidyverse)
-#' nrcesds_wide <- nrcesds %>% tidyr::pivot_wider(names_from = "cqa", values_from = "y")
+#' nrcesds_wide <- tidyr::pivot_wider(nrcesds, names_from = "cqa", values_from = "y")
 #' fit <- fit_singledeg(
 #'           df = nrcesds_wide,
 #'           kinetic_order = 2,
@@ -249,7 +246,6 @@ build_singledeg <- function(
 #' # -------------------------------------------------
 #' # This example uses the |> pipe and requires R version 4.1.0 or higher.
 #' if (getRversion() >= "4.1.0") {
-#'   library(tidyverse)
 #'   fit <- nrcesds |>
 #'     tidyr::pivot_wider(names_from = "cqa", values_from = "y") |>
 #'     dplyr::rename(

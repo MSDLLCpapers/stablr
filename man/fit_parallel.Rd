@@ -83,8 +83,7 @@ data("upsec")
 # -------------------------------------------------
 # Example 1: Standard usage
 # -------------------------------------------------
-library(tidyverse)
-upsec_wide <- upsec \%>\% tidyr::pivot_wider(names_from = "cqa", values_from = "y")
+upsec_wide <- tidyr::pivot_wider(upsec, names_from = "cqa", values_from = "y")
 fit <- fit_parallel(
           df = upsec_wide,
           kinetic_order = 1,
@@ -96,7 +95,6 @@ fit <- fit_parallel(
 # -------------------------------------------------
 # This example uses the |> pipe and requires R version 4.1.0 or higher.
 if (getRversion() >= "4.1.0") {
-  library(tidyverse)
   fit <- upsec |>
     tidyr::pivot_wider(names_from = "cqa", values_from = "y") |>
     dplyr::rename(

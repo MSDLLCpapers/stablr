@@ -20,7 +20,9 @@ knitr::opts_chunk$set(
 ```
 ```{r setup, warning=FALSE,message=FALSE}
 library(stablr)
-library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(purrr)
 
 # Shared palette for storage temperatures, used throughout.
 temp_cols <- c("navy", "dodgerblue", "lightgreen", "darkgoldenrod2", "red3")
