@@ -1,5 +1,5 @@
 Package: stablr
-Title: Advanced Kinetic Modeling
+Title: Kinetic Modeling of Pharmaceutical Stability Data
 Version: 1.0.0
 Authors@R: c(
     person(given = "Federico", family = "Ferrari", email = "federico.ferrari@msd.com", role = c("aut", "cre")),
@@ -7,12 +7,22 @@ Authors@R: c(
     person(given = "Michael", family = "Johnson", email = "michael.johnson6@msd.com", role = c("aut")),
     person(given = "Qiaohui", family = "Zhou", email = "qiaohui.zhou@msd.com", role = c("aut"))
     )
-Description: Provides tools for kinetic modeling of stability data. It provides a comprehensive framework for fitting and analyzing various degradation reaction models, incorporating the modified Arrhenius equation for temperature-dependent kinetics.
+Description: Fits kinetic models to pharmaceutical stability data using
+    nonlinear least squares. Supported models include the Sestak-Berggren
+    solid-state degradation model solved as an ordinary differential
+    equation, single-step degradation, and parallel degradation into two
+    products. Temperature and relative humidity dependence of reaction rates
+    is described with the Arrhenius and humidity-modified Arrhenius
+    equations. Provides confidence, prediction and tolerance intervals for
+    model predictions, predictions under time-varying temperature profiles,
+    and simulation of stability data.
 License: MIT + file LICENSE
+URL: https://github.com/MSDLLCpapers/stablr
+BugReports: https://github.com/MSDLLCpapers/stablr/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Depends:
-    R (>= 3.5)
+    R (>= 4.1.0)
 LazyData: true
 Imports:
     deSolve,
