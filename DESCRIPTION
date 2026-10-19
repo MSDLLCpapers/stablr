@@ -5,7 +5,8 @@ Authors@R: c(
     person(given = "Federico", family = "Ferrari", email = "federico.ferrari@msd.com", role = c("aut", "cre")),
     person(given = "Samantha", family = "Gleich", email = "samantha.gleich@msd.com", role = c("aut")),
     person(given = "Michael", family = "Johnson", email = "michael.johnson6@msd.com", role = c("aut")),
-    person(given = "Qiaohui", family = "Zhou", email = "qiaohui.zhou@msd.com", role = c("aut"))
+    person(given = "Qiaohui", family = "Zhou", email = "qiaohui.zhou@msd.com", role = c("aut")),
+    person("Merck & Co., Inc., Rahway, NJ, USA and its affiliates", role = c("cph", "fnd"))
     )
 Description: Fits kinetic models to pharmaceutical stability data using
     nonlinear least squares. Supported models include the Sestak-Berggren

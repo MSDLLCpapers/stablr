@@ -19,3 +19,4 @@
 ^demo_new_functions\.R$
 ^investigate_bugs\.R$
 ^\.merck\.yaml$
+^cran-comments\.md$
