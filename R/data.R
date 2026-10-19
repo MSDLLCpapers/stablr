@@ -1,6 +1,6 @@
 #' Purity and HMWS data from Evers et al. 2022 publication in Pharmaceutics
 #'
-#' HPLC purity and SEC high‑molecular‑weight (HMW) stability data for the therapeutic peptide SAR441255, measured for different combinations of three formulations and two primary packaging materials over time at various temperatures.
+#' HPLC purity and SEC high-molecular-weight (HMW) stability data for the therapeutic peptide SAR441255, measured for different combinations of three formulations and two primary packaging materials over time at various temperatures.
 #'
 #' @format A data frame with 630 rows and 9 variables:
 #' \itemize{

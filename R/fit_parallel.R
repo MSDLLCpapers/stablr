@@ -1,4 +1,4 @@
-#' Assemble Vector-Valued Residuals for a Parallel A → \{B, C\} Model
+#' Assemble Vector-Valued Residuals for a Parallel A -> \{B, C\} Model
 #'
 #' One-stop builder that combines intercept, rate, Arrhenius, and kinetic-order
 #' pieces for a three-response parallel-reaction system \eqn{A \to \{B, C\}}.
@@ -126,7 +126,7 @@ build_parallel <- function(
   ie_B <- expr_intercept(df, intercept_cols, prefix = "B0")
   ie_C <- expr_intercept(df, intercept_cols, prefix = "C0")
   
-  ## ── 2. Rate‑constant ─────────────────────────────────
+  ## ── 2. Rate-constant ─────────────────────────────────
   ## Prefix up front as with the intercepts: a gsub over the built expression
   ## cannot tell a "k_" parameter stem from a column name or level value.
   rp_B <- expr_rate(df, rate_cols, prefix = "kB")
@@ -175,9 +175,9 @@ build_parallel <- function(
     
     if (kinetic_order == 0) {
       yA_hat <- A_int - rate_time
-    } else if (kinetic_order == 1) {                              # first‑order
+    } else if (kinetic_order == 1) {                              # first-order
       yA_hat <- (A_int) * exp(-rate_time)
-    } else {                                          # higher‑order
+    } else {                                          # higher-order
       pow  <- 1 - kinetic_order
       yA_hat <- ( (A_int) ^ (pow) - (rate_time) * (pow) )^(1 / pow)
     }
@@ -231,7 +231,7 @@ build_parallel <- function(
 }
 
 
-#' Fit the Parallel A → \{B, C\} Model with \code{gsl_nls}
+#' Fit the Parallel A -> \{B, C\} Model with \code{gsl_nls}
 #'
 #' Convenience wrapper that (1) builds the vector-valued residual function via
 #' \code{\link{build_parallel}}, (2) generates default starting values when none

@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit_singledeg.R
 \name{fit_singledeg}
 \alias{fit_singledeg}
-\title{Fit a Two‑Response Single‑Degradation Kinetic Model with \code{gsl_nls}}
+\title{Fit a Two-Response Single-Degradation Kinetic Model with \code{gsl_nls}}
 \usage{
 fit_singledeg(
   df,
@@ -41,7 +41,7 @@ full cell means, so the two fit different intercept models with different
 parameter counts. Rates are always cell means.}
 
 \item{log_Ea}{Logical; if \code{TRUE} the activation energy parameter is
-named \code{Ea_log} and stored on the log‑scale. Ignored when \code{temp_expr} is provided.}
+named \code{Ea_log} and stored on the log-scale. Ignored when \code{temp_expr} is provided.}
 
 \item{yA_var, yB_var}{Column names for the primary response A and its
 companion response B (mass balance).}
@@ -73,8 +73,8 @@ The fitted \code{gsl_nls} object.
 \description{
 Convenience wrapper that
 \enumerate{
-\item builds the vector‑valued residual function for a coupled
-single‑degradation system (A → B) using
+\item builds the vector-valued residual function for a coupled
+single-degradation system (A -> B) using
 \code{\link{build_singledeg}},
 \item creates default starting values when none are supplied, and
 \item fits the model with \link[gslnls]{gsl_nls}.

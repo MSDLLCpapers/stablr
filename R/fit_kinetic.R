@@ -1,7 +1,7 @@
 #' Assemble an NLS Kinetic Formula
 #'
-#' One‑stop builder that pieces together intercept, rate, Arrhenius and kinetic
-#'‑order parts to create a self‑contained non‑linear least‑squares formula.
+#' One-stop builder that pieces together intercept, rate, Arrhenius and
+#' kinetic-order parts to create a self-contained non-linear least-squares formula.
 #'
 #' @param df Data frame containing all variables referenced in the formula.
 #' @param kinetic_order Integer reaction order (0, 1, 2, …).
@@ -81,11 +81,11 @@ build_kinetic <- function(
   rate_part <- expr_rate(df, rate_cols)
   arr_expr <- temp_fml
 
-  ## Common sub‑expression: k(T) × t -----------------------------------
+  ## Common sub-expression: k(T) × t -----------------------------------
   rate_time <- glue::glue("{rate_part$expr}*{arr_expr}*{time_var}")
   int_expr <- glue::glue("({int_part$expr})")
 
-  ## Right‑hand side (RHS) generator -----------------------------------
+  ## Right-hand side (RHS) generator -----------------------------------
   if(kinetic_order == 0 & trend == "increasing"){
     rhs <- glue::glue("{int_expr} + {rate_time}")
   }else if(kinetic_order == 0 & trend == "decreasing"){

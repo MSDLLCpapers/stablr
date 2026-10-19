@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit_singledeg.R
 \name{build_singledeg}
 \alias{build_singledeg}
-\title{Assemble a Vector‑Valued Residual Function for an A → B Kinetic System}
+\title{Assemble a Vector-Valued Residual Function for an A -> B Kinetic System}
 \usage{
 build_singledeg(
   df,
@@ -74,8 +74,8 @@ residual vector \eqn{(y_A, y_B)}.
 }
 }
 \description{
-One‑stop builder that combines intercept, rate, Arrhenius, and kinetic‑order
-pieces for a two‑response single‑degradation model (A → B).
+One-stop builder that combines intercept, rate, Arrhenius, and kinetic-order
+pieces for a two-response single-degradation model (A -> B).
 The result is ready for \code{\link[gslnls]{gsl_nls}}.
 }
 \examples{

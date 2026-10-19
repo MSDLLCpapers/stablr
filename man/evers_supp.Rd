@@ -31,6 +31,6 @@ license. This dataset is a subset of the original supplementary material.
 data("evers_supp")
 }
 \description{
-HPLC purity and SEC high‑molecular‑weight (HMW) stability data for the therapeutic peptide SAR441255, measured for different combinations of three formulations and two primary packaging materials over time at various temperatures.
+HPLC purity and SEC high-molecular-weight (HMW) stability data for the therapeutic peptide SAR441255, measured for different combinations of three formulations and two primary packaging materials over time at various temperatures.
 }
 \keyword{datasets}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit_parallel.R
 \name{build_parallel}
 \alias{build_parallel}
-\title{Assemble Vector-Valued Residuals for a Parallel A → \{B, C\} Model}
+\title{Assemble Vector-Valued Residuals for a Parallel A -> \{B, C\} Model}
 \usage{
 build_parallel(
   df,

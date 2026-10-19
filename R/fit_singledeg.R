@@ -1,7 +1,7 @@
-#' Assemble a Vector‑Valued Residual Function for an A → B Kinetic System
+#' Assemble a Vector-Valued Residual Function for an A -> B Kinetic System
 #'
-#' One‑stop builder that combines intercept, rate, Arrhenius, and kinetic‑order
-#' pieces for a two‑response single‑degradation model (A → B).
+#' One-stop builder that combines intercept, rate, Arrhenius, and kinetic-order
+#' pieces for a two-response single-degradation model (A -> B).
 #' The result is ready for \code{\link[gslnls]{gsl_nls}}.
 #'
 #' @param df Data frame containing every variable referenced in the formula.
@@ -101,7 +101,7 @@ build_singledeg <- function(
   ie_B <- expr_intercept(df, intercept_cols, prefix = "B0")
   
   
-  ## ── 2. Rate‑constant & Arrhenius Equation ─────────────────────────────────
+  ## ── 2. Rate-constant & Arrhenius Equation ─────────────────────────────────
   rate_part <- expr_rate(df, rate_cols)                      # k(T, …)
   arr_expr <- temp_fml
 
@@ -129,13 +129,13 @@ build_singledeg <- function(
       else{
         yA_hat <- A_int - rate_time 
       }
-    } else if (kinetic_order == 1) {                              # first‑order
+    } else if (kinetic_order == 1) {                              # first-order
       if (trend == "increasing") {
         yA_hat <- Yinf - (Yinf - A_int) * exp(-rate_time)
       } else {
         yA_hat <- (A_int) * exp(-rate_time)
       }
-    } else {                                          # higher‑order
+    } else {                                          # higher-order
       pow  <- 1 - kinetic_order
       if (trend == "increasing"){
         yA_hat <- Yinf - ( (Yinf - A_int)^(pow) - (rate_time) * (pow) )^(1 / pow)
@@ -186,11 +186,11 @@ build_singledeg <- function(
          temp_range = temp_range(df, temp_var)))
 }
 
-#' Fit a Two‑Response Single‑Degradation Kinetic Model with \code{gsl_nls}
+#' Fit a Two-Response Single-Degradation Kinetic Model with \code{gsl_nls}
 #'
 #' Convenience wrapper that
-#' 1. builds the vector‑valued residual function for a coupled
-#'    single‑degradation system (A → B) using
+#' 1. builds the vector-valued residual function for a coupled
+#'    single-degradation system (A -> B) using
 #'    \code{\link{build_singledeg}},
 #' 2. creates default starting values when none are supplied, and
 #' 3. fits the model with \link[gslnls]{gsl_nls}.
@@ -207,7 +207,7 @@ build_singledeg <- function(
 #'   full cell means, so the two fit different intercept models with different
 #'   parameter counts. Rates are always cell means.
 #' @param log_Ea Logical; if \code{TRUE} the activation energy parameter is
-#'   named \code{Ea_log} and stored on the log‑scale. Ignored when \code{temp_expr} is provided.
+#'   named \code{Ea_log} and stored on the log-scale. Ignored when \code{temp_expr} is provided.
 #' @param yA_var,yB_var Column names for the primary response A and its
 #'   companion response B (mass balance).
 #' @param temp_var,time_var Column names for temperature (Kelvin) and time. \code{temp_var} ignored when \code{temp_expr} is provided

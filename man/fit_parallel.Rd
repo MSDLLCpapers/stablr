@@ -2,7 +2,7 @@
 % Please edit documentation in R/fit_parallel.R
 \name{fit_parallel}
 \alias{fit_parallel}
-\title{Fit the Parallel A → \{B, C\} Model with \code{gsl_nls}}
+\title{Fit the Parallel A -> \{B, C\} Model with \code{gsl_nls}}
 \usage{
 fit_parallel(
   df,

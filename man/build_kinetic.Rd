@@ -64,8 +64,8 @@ A list with
 }
 }
 \description{
-One‑stop builder that pieces together intercept, rate, Arrhenius and kinetic
-‑order parts to create a self‑contained non‑linear least‑squares formula.
+One-stop builder that pieces together intercept, rate, Arrhenius and
+kinetic-order parts to create a self-contained non-linear least-squares formula.
 }
 \examples{
 data(evers_supp)
