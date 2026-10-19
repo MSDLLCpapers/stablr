@@ -8,3 +8,5 @@
 0 errors | 0 warnings | 1 note
 
 * This is a new submission.
+* "Sestak" and "Berggren", flagged as possibly misspelled in DESCRIPTION, are
+  the authors of the Sestak-Berggren kinetic model and are spelled correctly.

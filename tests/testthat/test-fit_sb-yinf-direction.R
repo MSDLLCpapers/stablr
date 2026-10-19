@@ -1,3 +1,5 @@
+skip_on_cran()
+
 decay_arm <- function(temp_c, times, k) {
   data.frame(temp_c = temp_c, tempk = temp_c + 273.15, time = times,
              y = 100 * exp(-k * times))

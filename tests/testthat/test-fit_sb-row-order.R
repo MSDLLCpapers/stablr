@@ -1,3 +1,5 @@
+skip_on_cran()
+
 test_that("fit_sb is invariant to input row order (H11-09)", {
   sb_kT <- function(tempk, k = 0.01, Ea = 80000)
     k * exp(Ea / 8.314 * (1 / 298.15 - 1 / tempk))

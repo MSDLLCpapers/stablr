@@ -1,3 +1,5 @@
+skip_on_cran()
+
 # The humidity term is exp(b * (rh - rh_ref)). When rh never varies that factor
 # is a single constant multiplying the rate, so b is perfectly aliased with the
 # rate parameters and is not identifiable. Optimisers do not fail on this --

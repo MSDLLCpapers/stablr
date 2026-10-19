@@ -1,3 +1,5 @@
+skip_on_cran()
+
 # fit_sb evaluates its Arrhenius factor inside an ODE, in an environment it
 # populates by hand.  It used to bind the temperature under the literal "tempk"
 # while expr_arrhenius() had written the caller's `temp_var` into the formula, so

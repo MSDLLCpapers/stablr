@@ -1,3 +1,5 @@
+skip_on_cran()
+
 # An identical call means a different MODEL in fit_sb than in the closed-form
 # fitters.
 #

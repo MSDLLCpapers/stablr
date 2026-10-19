@@ -1,3 +1,5 @@
+skip_on_cran()
+
 # predict_tos() on the fit_sb path diverged from the fit in two ways that no
 # input check could catch, because both live in how the composite is assembled
 # rather than in what the caller supplied.

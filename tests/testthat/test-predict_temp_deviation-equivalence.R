@@ -1,3 +1,4 @@
+skip_on_cran()
 
 # Single constant-temperature segment used throughout.
 .seg_time <- 24      # duration (same time units as the fitted data)

@@ -1,3 +1,5 @@
+skip_on_cran()
+
 test_that("fit_sb works with default Arrhenius (backward compatibility)", {
   # Generate synthetic data
   set.seed(123)

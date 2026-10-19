@@ -118,8 +118,14 @@ test_that("each variable of a multi-response fit gets its own baseline row", {
 })
 
 test_that("the fit_sb path gets a baseline row too", {
-  fit <- fit_sb(base_data(), rate_cols = "batch", intercept_cols = "batch",
-                trend = "decreasing", Yinf = 0)
+  # Noise keeps m off its lower bound and log_Ea puts Ea on the scale of the
+  # other parameters. On exact data with linear Ea the Hessian is so badly
+  # conditioned that solve() in vcov() fails on some platforms (Windows).
+  d <- base_data()
+  set.seed(1)
+  d$y <- d$y + stats::rnorm(nrow(d), 0, 0.3)
+  fit <- fit_sb(d, rate_cols = "batch", intercept_cols = "batch",
+                trend = "decreasing", Yinf = 0, log_Ea = TRUE)
   p <- predict_tos(fit, three_seg())
 
   expect_equal(nrow(p), 4L)

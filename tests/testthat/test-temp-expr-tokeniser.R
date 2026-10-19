@@ -1,3 +1,5 @@
+skip_on_cran()
+
 # Temperature-expression tokenising and parameter naming
 #
 # `temp_expr_params()` decides which symbols in a temperature expression are

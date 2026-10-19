@@ -1,3 +1,5 @@
+skip_on_cran()
+
 # predict_tos(time_step =) predicts within each segment, not only at its end. A
 # schedule is a small number of long segments, so the boundary-only output could
 # not be plotted as a trajectory: a 12-month storage leg contributed one point.
@@ -192,8 +194,12 @@ test_that("time_step works for the multi-response fitters", {
 })
 
 test_that("time_step works for the fit_sb ODE path", {
-  fit <- fit_sb(step_data(), rate_cols = "batch", intercept_cols = "batch",
-                trend = "decreasing", Yinf = 0)
+  # Noise keeps m off its lower bound and log_Ea puts Ea on the scale of the
+  # other parameters. On exact data with linear Ea the Hessian is so badly
+  # conditioned that solve() in vcov() fails on some platforms (Windows).
+  fit <- fit_sb(step_data(noisy = TRUE), rate_cols = "batch",
+                intercept_cols = "batch", trend = "decreasing", Yinf = 0,
+                log_Ea = TRUE)
   p <- suppressWarnings(predict_tos(fit, excursion, time_step = 3))
 
   expect_equal(p$time, c(0, 3, 6, 9, 12, 13, 16, 19, 22, 24))

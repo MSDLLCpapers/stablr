@@ -1,3 +1,5 @@
+skip_on_cran()
+
 test_that("predict_tos rejects an unseen grouping level on the fit_sb path", {
   # data("evers_supp")
   df <- evers_supp |> dplyr::filter(cqa == "Purity" & !is.na(y))

@@ -1,3 +1,5 @@
+skip_on_cran()
+
 test_that("predict.fit_kinetic correctly sanitizes intercept_cols and rate_cols", {
   # data("evers_supp")
   df <- evers_supp

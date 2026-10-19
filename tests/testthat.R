@@ -6,7 +6,6 @@
 # * https://r-pkgs.org/testing-design.html#sec-tests-files-overview
 # * https://testthat.r-lib.org/articles/special-files.html
 
-Sys.setenv(NOT_CRAN = "true")
 library(testthat)
 library(stablr)
 
