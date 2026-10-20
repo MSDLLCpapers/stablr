@@ -1,6 +1,6 @@
 Package: stablr
 Title: Kinetic Modeling of Pharmaceutical Stability Data
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(
     person(given = "Federico", family = "Ferrari", email = "federico.ferrari@msd.com", role = c("aut", "cre")),
     person(given = "Samantha", family = "Gleich", email = "samantha.gleich@msd.com", role = c("aut")),
