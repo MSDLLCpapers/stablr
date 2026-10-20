@@ -102,7 +102,10 @@ test_that("a stall AT a stationary point does not warn", {
     fit_kinetic(d, kinetic_order = 1, trend = "decreasing", Yinf = 0,
                 start = selfstart)
   )
-  expect_false(m$convInfo$isConv)          # the optimiser did stop early
+  # Whether the self-start stalls (isConv = FALSE) is platform-dependent: some
+  # toolchains (e.g. clang/flang on Debian) converge outright. Either way, no
+  # non-convergence warning may be emitted at the optimum.
+  expect_type(m$convInfo$isConv, "logical")
   expect_length(grep("did not converge", warnings_from(
     fit_kinetic(d, kinetic_order = 1, trend = "decreasing", Yinf = 0,
                 start = selfstart)

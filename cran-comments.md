@@ -2,6 +2,7 @@
 
 * local macOS (aarch64-apple-darwin), R 4.4.1
 * win-builder: R-devel, R-release
+* Debian (R-devel, clang/flang)
 
 ## R CMD check results
 
