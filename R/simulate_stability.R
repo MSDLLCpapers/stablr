@@ -212,7 +212,6 @@
 #' values drawn for each factor combination.
 #'
 #' @examples
-#' \dontrun{
 #' # Example 1: No factors; generic kinetic; 1st order; decreasing
 #' params1 <- list(
 #'   A0_target = 98,
@@ -307,7 +306,6 @@
 #'   clamp = TRUE,
 #'   sdpt = 123
 #' )
-#' }
 #'
 #' @export
 simulate_kinetic_data <- function(factors = NULL,
@@ -526,10 +524,6 @@ simulate_kinetic_data <- function(factors = NULL,
 
   # Set seed if provided
   if (!is.null(sdpt)) {
-    if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-      old_seed <- get(".Random.seed", envir = globalenv(), inherits = FALSE)
-      on.exit(assign(".Random.seed", old_seed, envir = globalenv()), add = TRUE)
-    }
     set.seed(sdpt)
   }
 

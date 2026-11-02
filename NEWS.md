@@ -1,4 +1,4 @@
-# stablr 1.0.1
+# stablr 1.0.2
 
 First public release of **stablr**, a framework for kinetic modeling of
 pharmaceutical stability data with Arrhenius temperature dependence and

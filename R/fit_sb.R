@@ -464,6 +464,20 @@ build_alpha_ode <- function(
 #' @param control \code{nls.lm.control()} list (defaults to diagonal scaling across parameters).
 #'
 #' @return the nls.lm fit object
+#'
+#' @references
+#' Sestak, J., & Berggren, G. (1971). Study of the kinetics of the mechanism
+#' of solid-state reactions at increasing temperatures.
+#' \emph{Thermochimica Acta}, 3(1), 1--12.
+#' \doi{10.1016/0040-6031(71)85051-7}
+#'
+#' Perez-Maqueda, L. A., Criado, J. M., & Sanchez-Jimenez, P. E. (2006).
+#' Combined kinetic analysis of solid-state reactions: a powerful tool for the
+#' simultaneous determination of kinetic parameters and the kinetic model
+#' without previous assumptions on the reaction mechanism.
+#' \emph{The Journal of Physical Chemistry A}, 110(45), 12456--12462.
+#' \doi{10.1021/jp064792g}
+#'
 #' @examples
 #' data(evers_supp)
 #' dat <- subset(evers_supp, cqa == "Purity" & !is.na(y))

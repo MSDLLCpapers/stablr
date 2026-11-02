@@ -11,7 +11,7 @@ build_singledeg(
   Yinf = 100,
   intercept_cols = character(),
   rate_cols = character(),
-  log_Ea = F,
+  log_Ea = FALSE,
   yA_var = "yA",
   yB_var = "yB",
   temp_var = "tempk",

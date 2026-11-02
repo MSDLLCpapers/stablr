@@ -204,7 +204,7 @@ expr_arrhenius <- function(
     R      = 8.314,
     trefk  = 298.15,
     temp_var = "tempk",
-    log_Ea = F) {
+    log_Ea = FALSE) {
 
 
   Ea_par <- ifelse(log_Ea, "exp(Ea_log)", "Ea")
@@ -253,6 +253,13 @@ expr_arrhenius <- function(
 #'   `Ea_log` (log-scale) and is exponentiated inside the expression.
 #'
 #' @return A list with humidity-modified Arrhenius expression inputs including a humidity-modified Arrhenius formula.
+#'
+#' @references
+#' Waterman, K. C., Carella, A. J., Gumkowski, M. J., Lukulay, P.,
+#' MacDonald, B. C., Roy, M. C., & Shamblin, S. L. (2007). Improved protocol
+#' and data analysis for accelerated shelf-life estimation of solid dosage
+#' forms. \emph{Pharmaceutical Research}, 24(4), 780--790.
+#' \doi{10.1007/s11095-006-9201-4}
 #'
 #' @examples
 #' expr_arrhenius_humidity()

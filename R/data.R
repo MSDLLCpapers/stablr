@@ -84,6 +84,12 @@
 #'   \item \code{y} - CQA value
 #' }
 #'
+#' @source
+#' Flavier, K., McLellan, J., Botoy, T., & Waterman, K. C. (2022). Accelerated
+#' shelf life modeling of appearance change in drug products using ASAPprime.
+#' \emph{Pharmaceutical Development and Technology}, 27(6), 740--748.
+#' \doi{10.1080/10837450.2022.2112223}.
+#'
 #' @docType data
 #' @usage data("flavier_supp")
 #' @keywords datasets

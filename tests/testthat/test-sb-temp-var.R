@@ -10,9 +10,9 @@ skip_on_cran()
 # One data frame carrying the same Kelvin temperatures under several names, so a
 # fit under each is comparable coefficient-for-coefficient.
 sb_data <- function() {
-  g  <- expand.grid(time = c(0, 3, 6, 9, 12, 18), T = c(278.15, 298.15, 313.15),
+  g  <- expand.grid(time = c(0, 3, 6, 9, 12, 18), tk = c(278.15, 298.15, 313.15),
                     batch = c("b1", "b2"), stringsAsFactors = FALSE)
-  k  <- 0.05 * exp(70000 / 8.314 * (1 / 298.15 - 1 / g$T))
+  k  <- 0.05 * exp(70000 / 8.314 * (1 / 298.15 - 1 / g$tk))
   y0 <- ifelse(g$batch == "b1", 99, 98)
   df <- data.frame(
     time  = g$time,
@@ -21,7 +21,7 @@ sb_data <- function() {
     stringsAsFactors = FALSE
   )
   # Same values, four names.  "tempk" is the default; the others are not.
-  for (nm in c("tempk", "tempK", "myT", "Temperature_K")) df[[nm]] <- g$T
+  for (nm in c("tempk", "tempK", "myT", "Temperature_K")) df[[nm]] <- g$tk
   df
 }
 
@@ -163,10 +163,10 @@ test_that("humidity fits still work under a non-default temp_var", {
   # identifiable so the fit lands in the interior rather than on the Ea = 0
   # bound (a degenerate two-temperature design admits an Ea -> 0 optimum where
   # the humidity term absorbs the temperature effect).
-  g  <- expand.grid(time = c(0, 3, 6, 9, 12), T = c(298.15, 308.15, 313.15),
+  g  <- expand.grid(time = c(0, 3, 6, 9, 12), tk = c(298.15, 308.15, 313.15),
                     rh = c(40, 75))
-  k  <- 0.05 * exp(70000 / 8.314 * (1 / 298.15 - 1 / g$T) + 0.02 * (g$rh - 60))
-  df <- data.frame(time = g$time, myT = g$T, humid = g$rh,
+  k  <- 0.05 * exp(70000 / 8.314 * (1 / 298.15 - 1 / g$tk) + 0.02 * (g$rh - 60))
+  df <- data.frame(time = g$time, myT = g$tk, humid = g$rh,
                    y = 99 - 20 * (1 - exp(-k * g$time)))
   df$tempk <- df$myT
 

@@ -60,7 +60,7 @@ build_kinetic <- function(
     Yinf = 100,
     intercept_cols = character(),
     rate_cols = character(),
-    log_Ea = F,
+    log_Ea = FALSE,
     outcome_var = "y",
     temp_var = "tempk",
     time_var = "time",

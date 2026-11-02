@@ -30,7 +30,7 @@ library(ggplot2)
 
 ## Introduction - Humidity-Modified Arrhenius Equation
 
-Stability studies may sometimes be performed under multiple temperature and relative humidity conditions. When relative humidity varies over time and across temperatures, this attribute can be incorporated into stability models using a humidity-modified form of the Arrhenius equation. The general form of the humidity-modified Arrhenius equation outlined by @waterman2016 is:
+Stability studies may sometimes be performed under multiple temperature and relative humidity conditions. When relative humidity varies over time and across temperatures, this attribute can be incorporated into stability models using a humidity-modified form of the Arrhenius equation. The general form of the humidity-modified Arrhenius equation outlined by @waterman2007 is:
 
 
 $$

@@ -4,9 +4,17 @@
 \name{stablr-package}
 \alias{stablr}
 \alias{stablr-package}
-\title{stablr: Advanced Kinetic Modeling}
+\title{stablr: Kinetic Modeling of Pharmaceutical Stability Data}
 \description{
-Provides tools for kinetic modeling of stability data. It provides a comprehensive framework for fitting and analyzing various degradation reaction models, incorporating the modified Arrhenius equation for temperature-dependent kinetics.
+Fits kinetic models to pharmaceutical stability data using nonlinear least squares. Supported models include the Sestak-Berggren degradation model (Sestak and Berggren (1971) \doi{10.1016/0040-6031(71)85051-7}; Perez-Maqueda et al. (2006) \doi{10.1021/jp064792g}) solved as an ordinary differential equation, single-step degradation, and parallel degradation into two products. Temperature and relative humidity dependence of reaction rates is described with the Arrhenius and humidity-modified Arrhenius equations (Waterman et al. (2007) \doi{10.1007/s11095-006-9201-4}). Provides confidence, prediction and tolerance intervals for model predictions, with tolerance intervals following Krishnamoorthy and Mathew (2009) \doi{10.1002/9780470473900}, predictions under time-varying temperature profiles, and simulation of stability data.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/MSDLLCpapers/stablr}
+  \item Report bugs at \url{https://github.com/MSDLLCpapers/stablr/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Federico Ferrari \email{federico.ferrari@msd.com}
@@ -17,6 +25,11 @@ Authors:
   \item Samantha Gleich \email{samantha.gleich@msd.com}
   \item Michael Johnson \email{michael.johnson6@msd.com}
   \item Qiaohui Zhou \email{qiaohui.zhou@msd.com}
+}
+
+Other contributors:
+\itemize{
+  \item Merck & Co., Inc., Rahway, NJ, USA and its affiliates [copyright holder, funder]
 }
 
 }

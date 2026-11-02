@@ -257,7 +257,6 @@ When \code{return_params = TRUE}, the returned parameters show the actual
 values drawn for each factor combination.
 }
 \examples{
-\dontrun{
 # Example 1: No factors; generic kinetic; 1st order; decreasing
 params1 <- list(
   A0_target = 98,
@@ -352,6 +351,5 @@ upsec <- simulate_kinetic_data(
   clamp = TRUE,
   sdpt = 123
 )
-}
 
 }

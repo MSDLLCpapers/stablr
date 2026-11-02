@@ -4,7 +4,7 @@
 \alias{expr_arrhenius}
 \title{Arrhenius Expression}
 \usage{
-expr_arrhenius(R = 8.314, trefk = 298.15, temp_var = "tempk", log_Ea = F)
+expr_arrhenius(R = 8.314, trefk = 298.15, temp_var = "tempk", log_Ea = FALSE)
 }
 \arguments{
 \item{R}{Gas constant (default 8.314 J mol-1 K-1).}

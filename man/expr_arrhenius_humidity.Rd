@@ -66,3 +66,10 @@ expr_arrhenius_humidity(rh_col = "humidity", rh_ref = 0.75)
 # Percent-coded humidity data: put rh_ref on the percent scale too.
 expr_arrhenius_humidity(rh_ref = 60)
 }
+\references{
+Waterman, K. C., Carella, A. J., Gumkowski, M. J., Lukulay, P.,
+MacDonald, B. C., Roy, M. C., & Shamblin, S. L. (2007). Improved protocol
+and data analysis for accelerated shelf-life estimation of solid dosage
+forms. \emph{Pharmaceutical Research}, 24(4), 780--790.
+\doi{10.1007/s11095-006-9201-4}
+}

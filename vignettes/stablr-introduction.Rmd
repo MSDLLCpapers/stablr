@@ -42,7 +42,7 @@ This vignette provides an overview of the kinetic framework implemented in `stab
 $$ \text{CQA Equation} \quad \quad Y(t, T) = (Y_\infty - Y_0)\,\alpha(t) + Y_0 \tag{1}$$
 where $\alpha(t)$ is fraction reacted ($\alpha(0) = 0$, $\alpha(\infty)=1$), $Y_0$ is initial assay value (t = 0) and $Y_\infty$ is the asymptotic value as the reaction completes.
 
-We model $\alpha(t)$ using the following kinetic differential equation and the Šesták–Berggren (SB) model [@vsestak1971study, @perez2006combined]:
+We model $\alpha(t)$ using the following kinetic differential equation and the Šesták–Berggren (SB) model [@vsestak1971study; @perez2006combined]:
 
 \begin{align}
 &\text{Kinetic DE} \ && \frac{d\alpha}{dt} = k(T)\,f(\alpha) \tag{2} \\
